@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getPacientes } from "@/lib/pacientesService";
-import { Paciente } from "@/lib/database";
+import { getPacientes, createPaciente } from "@/lib/pacientesService";
+import { Paciente, PacienteCreate } from "@/lib/database";
 import { PlusCircle } from "lucide-react";
 import { AddPatientDialog } from "@/components/AddPatientDialog";
 
@@ -37,8 +37,15 @@ export default function PatientSelector({ selectedPatientId, onPatientSelected }
   }, []);
 
   // Manejar cuando se agrega un nuevo paciente
-  const handlePatientAdded = async () => {
-    await loadPatients();
+  const handlePatientAdded = async (patientData: PacienteCreate) => {
+    try {
+      // Guardar el nuevo paciente en Supabase
+      await createPaciente(patientData);
+      // Recargar la lista de pacientes
+      await loadPatients();
+    } catch (error) {
+      console.error("Error creating patient:", error);
+    }
   };
 
   return (

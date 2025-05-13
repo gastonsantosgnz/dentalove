@@ -32,6 +32,7 @@ export interface Servicio {
   duracion: number; // en minutos
   descripcion?: string | null;
   especialidad?: string | null;
+  tipo_paciente: string; // 'Adulto' | 'Pediátrico' | 'General'
   created_at?: string;
   updated_at?: string;
 }

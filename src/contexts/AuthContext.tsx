@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Función mejorada para manejar redirecciones
-  const redirectToDashboard = () => {
+  const redirectToDashboard = useCallback(() => {
     console.log('[AuthContext] Attempting to redirect to dashboard...');
     
     // Establecer cookie para evitar problemas con el middleware
@@ -49,10 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('[AuthContext] Redirect error:', e);
     }
-  };
+  }, []);
 
   // Improved redirect function to use Next.js router when possible
-  const redirectIfNeeded = (newSession: Session | null) => {
+  const redirectIfNeeded = useCallback((newSession: Session | null) => {
     // Solo redirigir si no lo hemos hecho ya y hay una sesión
     if (!hasRedirected && newSession) {
       const currentPath = window.location.pathname;
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectToDashboard();
       }
     }
-  };
+  }, [hasRedirected, redirectToDashboard]);
 
   useEffect(() => {
     // Obtener la sesión actual al cargar
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, redirectIfNeeded]);
 
   // Función para iniciar sesión con OTP (código por email)
   const signInWithOtp = async (email: string) => {

@@ -87,7 +87,7 @@ export default function NewTreatmentPlanPage() {
         <Button 
           variant="outline" 
           size="icon" 
-          onClick={() => router.back()}
+          onClick={() => router.push(`/pacientes/${pacienteId}/planes`)}
           aria-label="Volver"
         >
           <ChevronLeft className="h-4 w-4" />

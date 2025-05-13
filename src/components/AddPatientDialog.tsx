@@ -33,6 +33,20 @@ export function getPatientType(birthDate: string): "Adulto" | "Pediátrico" | "A
   return "Adulto";
 }
 
+// Función para formatear fecha de YYYY-MM-DD a DD/MM/YYYY
+function formatDateForDisplay(dateString: string): string {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+// Función para convertir fecha de DD/MM/YYYY a YYYY-MM-DD
+function parseDisplayDate(displayDate: string): string {
+  if (!displayDate) return '';
+  const [day, month, year] = displayDate.split('/');
+  return `${year}-${month}-${day}`;
+}
+
 interface AddPatientDialogProps {
   onSubmit: ((data: PacienteCreate) => void) | (() => void);
 }
@@ -40,6 +54,7 @@ interface AddPatientDialogProps {
 export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date>();
+  const [displayDate, setDisplayDate] = useState('');
   
   const [formData, setFormData] = useState({
     nombre_completo: "",
@@ -50,6 +65,42 @@ export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    if (e.target.type === 'date') {
+      // Si es el input nativo de tipo fecha (YYYY-MM-DD)
+      if (value) {
+        const dateObj = new Date(value);
+        setDate(dateObj);
+        setDisplayDate(formatDateForDisplay(value));
+      } else {
+        setDate(undefined);
+        setDisplayDate('');
+      }
+    } else {
+      // Si es el input de texto (DD/MM/YYYY)
+      setDisplayDate(value);
+      
+      // Validar formato DD/MM/YYYY con regex
+      const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      const match = value.match(dateRegex);
+      
+      if (match) {
+        const [_, day, month, year] = match;
+        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        const dateObj = new Date(isoDate);
+        
+        // Verificar que la fecha sea válida
+        if (!isNaN(dateObj.getTime())) {
+          setDate(dateObj);
+        }
+      } else if (!value) {
+        setDate(undefined);
+      }
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -83,6 +134,7 @@ export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
       notas: ""
     });
     setDate(undefined);
+    setDisplayDate('');
   };
 
   return (
@@ -127,17 +179,17 @@ export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
               </Label>
               <Input
                 id="fecha_nacimiento"
-                type="date"
+                placeholder="DD/MM/YYYY"
                 className="col-span-3"
-                value={date ? date.toISOString().split('T')[0] : ''}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setDate(new Date(e.target.value));
-                  } else {
-                    setDate(undefined);
-                  }
-                }}
+                value={displayDate}
+                onChange={handleDateChange}
                 required
+              />
+              <Input 
+                type="date" 
+                className="hidden" 
+                value={date ? date.toISOString().split('T')[0] : ''}
+                onChange={handleDateChange}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

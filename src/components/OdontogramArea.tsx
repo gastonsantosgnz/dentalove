@@ -1,29 +1,25 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import DentalChart from "./DentalChart"
-import ToothStatusComponent, { Servicio } from "./ToothStatus"
 import { Button } from "@/components/ui/button"
 import { ToothStatus } from "./DentalChart"
+import { Servicio } from "./ToothStatus"
 import { v4 as uuidv4 } from 'uuid'
 import { motion } from "framer-motion"
-import TreatmentReport from "./TreatmentReport"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { saveCompletePlanTratamiento } from "@/lib/planesTratamientoService"
-import { PlusCircle, Copy, Trash2, Check, X, Loader2 } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Check, X, Loader2 } from "lucide-react"
 
-// Tipo para versiones de plan
-interface PlanVersion {
-  id: string;
-  nombre: string;
-  toothStatus: Record<string, ToothStatus[]>;
-  totalCost: number;
-  isActive: boolean;
-  editableCosts?: Record<string, number>;
-}
+// Import the refactored components
+import {
+  DentalChartSection,
+  ToothStatusPanel,
+  TreatmentSummary,
+  isGeneralAreaKey,
+  PlanVersion,
+  ToothAreaData
+} from "./odontograma"
 
 interface OdontogramAreaProps {
   chartType?: "adult" | "child"
@@ -34,6 +30,7 @@ interface OdontogramAreaProps {
   onPlanSaved?: () => void  // Callback para notificar cuando se guarda un plan
 }
 
+// Componente principal OdontogramArea
 export default function OdontogramArea({ 
   chartType = "adult", 
   patientName, 
@@ -63,6 +60,9 @@ export default function OdontogramArea({
   // Estado para la especialidad seleccionada
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>("Todas");
 
+  // Add state for editable costs
+  const [customCosts, setCustomCosts] = useState<Record<string, number>>({});
+
   // Nuevo estado para manejar versiones de planes
   const [planVersions, setPlanVersions] = useState<PlanVersion[]>([
     {
@@ -90,129 +90,57 @@ export default function OdontogramArea({
     return planVersions.find(version => version.isActive) || planVersions[0];
   }, [planVersions]);
 
-  // Sincronizar el toothStatus con la versión activa
-  useEffect(() => {
-    if (activeVersion) {
-      setToothStatus(activeVersion.toothStatus);
-    }
-  }, [activeVersion]);
-
-  // Actualizar la versión activa cuando cambia toothStatus
-  useEffect(() => {
-    setPlanVersions(prevVersions => {
-      return prevVersions.map(version => {
-        if (version.isActive) {
-          // Actualizar costo total para la versión activa
-          const newTotalCost = calculateTotalCost(toothStatus);
-          return { ...version, toothStatus: { ...toothStatus }, totalCost: newTotalCost };
-        }
-        return version;
-      });
-    });
-  }, [toothStatus]);
-  
-  // Servicios filtrados según la especialidad seleccionada
-  const filteredServicios = useMemo(() => {
-    if (selectedSpecialty === "Todas") {
-      return servicios;
-    }
-    
-    // Filtrar servicios que coincidan con la especialidad seleccionada
-    return servicios.filter(servicio => servicio.especialidad === selectedSpecialty);
-  }, [servicios, selectedSpecialty]);
-
   // Manejar la selección de un diente
   const handleSelectTooth = useCallback((tooth: string) => {
     setSelectedTooth(tooth);
   }, []);
 
-  // Manejar la actualización del estado de un diente
-  const handleUpdateStatus = useCallback((
-    tooth: string, 
-    status: string, 
-    color: string, 
-    type: "condition" | "treatment",
-    serviceId?: string
-  ) => {
-    setToothStatus(prevStatus => {
-      // Obtener el estado actual del diente
-      const currentToothStatus = prevStatus[tooth] || [];
-      
-      // Buscar si ya existe el estado que queremos actualizar
-      const statusIndex = currentToothStatus.findIndex(
-        s => s.status === status && s.type === type && 
-        // Para tratamientos, también comparar el ID del servicio
-        (type === "condition" || s.servicio_id === serviceId)
-      );
-      
-      let updatedToothStatus;
-      
-      if (statusIndex >= 0) {
-        // Si el estado ya existe, lo eliminamos (toggle)
-        updatedToothStatus = [
-          ...currentToothStatus.slice(0, statusIndex),
-          ...currentToothStatus.slice(statusIndex + 1)
-        ];
-      } else {
-        // Si el estado no existe, lo añadimos
-        updatedToothStatus = [
-          ...currentToothStatus,
-          {
-            id: uuidv4(), // Generar un ID único
-            status,
-            color,
-            type,
-            servicio_id: type === "treatment" ? serviceId : undefined
-          }
-        ];
+  // Get service cost considering editable costs
+  const getServiceCost = useCallback((servicioId: string | null | undefined, treatmentName: string, tooth?: string | null) => {
+    if (tooth) {
+      const key = `${tooth}_${servicioId}`;
+      if (customCosts[key] !== undefined) {
+        return customCosts[key];
       }
-      
-      // Devolver el nuevo estado
-      return {
-        ...prevStatus,
-        [tooth]: updatedToothStatus
-      };
-    });
-  }, []);
+    }
+    if (servicioId && servicios.length > 0) {
+      const servicio = servicios.find(s => s.id === servicioId);
+      if (servicio) {
+        return servicio.costo;
+      }
+    }
+    return 0;
+  }, [servicios, customCosts]);
 
-  // Handlers para los botones de áreas generales
-  const selectBocaCompleta = useCallback(() => handleSelectTooth("boca-completa"), [handleSelectTooth]);
-  const selectArcoSuperior = useCallback(() => handleSelectTooth("arco-superior"), [handleSelectTooth]);
-  const selectArcoInferior = useCallback(() => handleSelectTooth("arco-inferior"), [handleSelectTooth]);
-  
-  // Función auxiliar para verificar si una clave representa un área general
-  const isGeneralAreaKey = (key: string): boolean => {
-    return ["boca-completa", "arco-superior", "arco-inferior"].includes(key);
-  }
-  
-  // Agrupar tratamientos por diente
-  const treatmentsByTooth = useMemo(() => {
-    const result: Record<string, { 
+  // Modify calculateTotalCost to use editable costs
+  const calculateTotalCost = useCallback((status: Record<string, ToothStatus[]>) => {
+    const treatmentsByToothLocal: Record<string, { 
       conditions: ToothStatus[], 
       treatments: ToothStatus[],
       isGeneral: boolean
     }> = {};
     
-    // Procesar cada diente o área
-    Object.entries(toothStatus).forEach(([tooth, statuses]) => {
+    Object.entries(status).forEach(([tooth, statuses]) => {
       if (statuses && statuses.length > 0) {
         const isGeneral = isGeneralAreaKey(tooth);
-        result[tooth] = {
+        treatmentsByToothLocal[tooth] = {
           conditions: statuses.filter(s => s.type === "condition"),
           treatments: statuses.filter(s => s.type === "treatment"),
           isGeneral
         };
       }
     });
-    
-    return result;
-  }, [toothStatus]);
-  
-  // Add state for editable costs
-  const [customCosts, setCustomCosts] = useState<Record<string, number>>({});
+
+    return Object.entries(treatmentsByToothLocal).reduce((total, [toothId, data]) => {
+      return total + data.treatments.reduce((subTotal, treatment) => {
+        const cost = getServiceCost(treatment.servicio_id, treatment.status, toothId);
+        return subTotal + cost;
+      }, 0);
+    }, 0);
+  }, [getServiceCost]);
 
   // Simple function to handle cost edits
-  const handleEditCost = (treatment: string, servicioId: string | undefined) => {
+  const handleEditCost = useCallback((treatment: string, servicioId: string | undefined) => {
     if (!selectedTooth || !servicioId) return;
     
     // Get current cost
@@ -245,64 +173,120 @@ export default function OdontogramArea({
     const updatedCosts = { ...customCosts, [key]: newCost };
     setCustomCosts(updatedCosts);
     
-    // Update active version
-    setPlanVersions(prev => prev.map(version => {
+    // Directly update active version
+    const newVersions = planVersions.map(version => {
       if (version.isActive) {
         return {
           ...version,
           editableCosts: updatedCosts,
-          // Recalculate total cost
           totalCost: calculateTotalCost(toothStatus)
         };
       }
       return version;
-    }));
-  };
-
-  // Get service cost considering editable costs
-  const getServiceCost = (servicioId: string | null | undefined, treatmentName: string, tooth?: string | null) => {
-    if (tooth) {
-      const key = `${tooth}_${servicioId}`;
-      if (customCosts[key] !== undefined) {
-        return customCosts[key];
-      }
-    }
-    if (servicioId && servicios.length > 0) {
-      const servicio = servicios.find(s => s.id === servicioId);
-      if (servicio) {
-        return servicio.costo;
-      }
-    }
-    return 0;
-  };
-
-  // Modify calculateTotalCost to use editable costs
-  const calculateTotalCost = useCallback((status: Record<string, ToothStatus[]>) => {
-    const treatmentsByToothLocal: Record<string, { 
-      conditions: ToothStatus[], 
-      treatments: ToothStatus[],
-      isGeneral: boolean
-    }> = {};
+    });
     
-    Object.entries(status).forEach(([tooth, statuses]) => {
+    setPlanVersions(newVersions);
+  }, [selectedTooth, customCosts, servicios, planVersions, calculateTotalCost, toothStatus]);
+
+  // Servicios filtrados según la especialidad seleccionada
+  const filteredServicios = useMemo(() => {
+    if (selectedSpecialty === "Todas") {
+      return servicios;
+    }
+    
+    // Filtrar servicios que coincidan con la especialidad seleccionada
+    return servicios.filter(servicio => servicio.especialidad === selectedSpecialty);
+  }, [servicios, selectedSpecialty]);
+
+  // Manejar la actualización del estado de un diente
+  const handleUpdateStatus = useCallback((
+    tooth: string, 
+    status: string, 
+    color: string, 
+    type: "condition" | "treatment",
+    serviceId?: string
+  ) => {
+    // Primero actualizamos el estado local de los dientes
+    const newToothStatus = { ...toothStatus };
+    
+    // Obtener el estado actual del diente
+    const currentToothStatus = newToothStatus[tooth] || [];
+    
+    // Buscar si ya existe el estado que queremos actualizar
+    const statusIndex = currentToothStatus.findIndex(
+      s => s.status === status && s.type === type && 
+      // Para tratamientos, también comparar el ID del servicio
+      (type === "condition" || s.servicio_id === serviceId)
+    );
+    
+    let updatedToothStatus;
+    
+    if (statusIndex >= 0) {
+      // Si el estado ya existe, lo eliminamos (toggle)
+      updatedToothStatus = [
+        ...currentToothStatus.slice(0, statusIndex),
+        ...currentToothStatus.slice(statusIndex + 1)
+      ];
+    } else {
+      // Si el estado no existe, lo añadimos
+      updatedToothStatus = [
+        ...currentToothStatus,
+        {
+          id: uuidv4(), // Generar un ID único
+          status,
+          color,
+          type,
+          servicio_id: type === "treatment" ? serviceId : undefined
+        }
+      ];
+    }
+    
+    // Actualizar el estado local
+    newToothStatus[tooth] = updatedToothStatus;
+    setToothStatus(newToothStatus);
+    
+    // Directamente actualizar la versión activa
+    const newVersions = planVersions.map(version => {
+      if (version.isActive) {
+        return {
+          ...version,
+          toothStatus: newToothStatus,
+          totalCost: calculateTotalCost(newToothStatus)
+        };
+      }
+      return version;
+    });
+    
+    setPlanVersions(newVersions);
+  }, [toothStatus, planVersions, calculateTotalCost]);
+
+  // Sincronizar estados cuando cambia la versión activa
+  useEffect(() => {
+    setToothStatus(activeVersion.toothStatus);
+    if (activeVersion.editableCosts) {
+      setCustomCosts(activeVersion.editableCosts);
+    }
+  }, [activeVersion.id, activeVersion.toothStatus, activeVersion.editableCosts]);
+
+  // Agrupar tratamientos por diente
+  const treatmentsByTooth = useMemo(() => {
+    const result: Record<string, ToothAreaData> = {};
+    
+    // Procesar cada diente o área
+    Object.entries(toothStatus).forEach(([tooth, statuses]) => {
       if (statuses && statuses.length > 0) {
         const isGeneral = isGeneralAreaKey(tooth);
-        treatmentsByToothLocal[tooth] = {
+        result[tooth] = {
           conditions: statuses.filter(s => s.type === "condition"),
           treatments: statuses.filter(s => s.type === "treatment"),
           isGeneral
         };
       }
     });
-
-    return Object.entries(treatmentsByToothLocal).reduce((total, [toothId, data]) => {
-      return total + data.treatments.reduce((subTotal, treatment) => {
-        const cost = getServiceCost(treatment.servicio_id, treatment.status, toothId);
-        return subTotal + cost;
-      }, 0);
-    }, 0);
-  }, [servicios, customCosts]);
-
+    
+    return result;
+  }, [toothStatus]);
+  
   // Calcular el costo total de la versión activa
   const totalCost = useMemo(() => {
     return Object.entries(treatmentsByTooth).reduce((total, [toothId, data]) => {
@@ -311,10 +295,10 @@ export default function OdontogramArea({
         return subTotal + cost;
       }, 0);
     }, 0);
-  }, [treatmentsByTooth, customCosts, getServiceCost]);
+  }, [treatmentsByTooth, getServiceCost]);
 
   // Función para crear una nueva versión
-  const handleCreateVersion = () => {
+  const handleCreateVersion = useCallback(() => {
     const versionNumber = planVersions.length + 1;
     const versionName = `Versión ${versionNumber}`;
     
@@ -333,52 +317,20 @@ export default function OdontogramArea({
       title: "Versión creada",
       description: `Se ha creado la ${versionName}`
     });
-  };
-
-  // Función para crear copia de la versión actual
-  const handleDuplicateVersion = () => {
-    const versionNumber = planVersions.length + 1;
-    const versionName = `Versión ${versionNumber}`;
-
-    const newVersion: PlanVersion = {
-      id: uuidv4(),
-      nombre: versionName,
-      toothStatus: { ...toothStatus },
-      totalCost: calculateTotalCost(toothStatus),
-      isActive: false,
-      editableCosts: { ...customCosts }
-    };
-
-    setPlanVersions(prev => [...prev, newVersion]);
-
-    toast({
-      title: "Versión duplicada",
-      description: `Se ha creado una copia como "${versionName}"`
-    });
-  };
+  }, [planVersions, toothStatus, calculateTotalCost, customCosts, toast]);
 
   // Load editable costs when changing versions
-  const handleChangeVersion = (versionId: string) => {
+  const handleChangeVersion = useCallback((versionId: string) => {
     setPlanVersions(prev => {
-      const newVersions = prev.map(version => ({
+      return prev.map(version => ({
         ...version,
         isActive: version.id === versionId
       }));
-      
-      // Load editable costs from the selected version
-      const selectedVersion = newVersions.find(v => v.id === versionId);
-      if (selectedVersion?.editableCosts) {
-        setCustomCosts(selectedVersion.editableCosts);
-      } else {
-        setCustomCosts({});
-      }
-      
-      return newVersions;
     });
-  };
+  }, []);
 
   // Función para eliminar una versión
-  const handleDeleteVersion = (versionId: string) => {
+  const handleDeleteVersion = useCallback((versionId: string) => {
     // No permitir eliminar si es la única versión
     if (planVersions.length <= 1) {
       toast({
@@ -407,7 +359,7 @@ export default function OdontogramArea({
       title: "Versión eliminada",
       description: `Se ha eliminado la ${versionToDelete.nombre}`
     });
-  };
+  }, [planVersions, toast]);
 
   // Función para guardar el plan actual en Supabase
   const savePlan = useCallback(async () => {
@@ -556,233 +508,51 @@ export default function OdontogramArea({
       <div className="grid gap-6 md:grid-cols-3">
         {/* Columna del odontograma */}
         <div className="md:col-span-2">
-          <Card className="overflow-hidden">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 pb-0 sm:pb-0">
-              <div>
-                <CardTitle>Odontograma - {effectiveChartType === 'adult' ? 'Adulto' : 'Infantil'}</CardTitle>
-              </div>
-              
-              {/* Área general */}
-              <div className="mt-3 sm:mt-0 flex flex-wrap gap-2">
-                <Button 
-                  variant={selectedTooth === "boca-completa" ? "default" : "outline"}
-                  size="sm"
-                  onClick={selectBocaCompleta}
-                  className={cn(
-                    selectedTooth === "boca-completa" && "bg-slate-800 text-white hover:bg-slate-700"
-                  )}
-                >
-                  Boca
-                </Button>
-                <Button 
-                  variant={selectedTooth === "arco-superior" ? "default" : "outline"}
-                  size="sm"
-                  onClick={selectArcoSuperior}
-                  className={cn(
-                    selectedTooth === "arco-superior" && "bg-slate-800 text-white hover:bg-slate-700"
-                  )}
-                >
-                  Superior
-                </Button>
-                <Button 
-                  variant={selectedTooth === "arco-inferior" ? "default" : "outline"}
-                  size="sm"
-                  onClick={selectArcoInferior}
-                  className={cn(
-                    selectedTooth === "arco-inferior" && "bg-slate-800 text-white hover:bg-slate-700"
-                  )}
-                >
-                  Inferior
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              <DentalChart
-                selectedTooth={selectedTooth}
-                onSelectTooth={handleSelectTooth}
-                chartType={effectiveChartType}
-                toothStatus={toothStatus}
-              />
-            </CardContent>
-          </Card>
+          <DentalChartSection
+            effectiveChartType={effectiveChartType}
+            selectedTooth={selectedTooth}
+            handleSelectTooth={handleSelectTooth}
+            toothStatus={toothStatus}
+          />
         </div>
 
         {/* Columna lateral con Estado/Tratamiento */}
         <div>
-          <Card className="flex flex-col h-full">
-            <CardHeader className="p-4 pb-2 flex-none">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Estado y Tratamiento</CardTitle>
-                  <CardDescription className="text-slate-600">Registre el estado del diente</CardDescription>
-                </div>
-                
-                {/* Mostrar versión actual */}
-                <div className="text-sm font-medium text-slate-800">
-                  {activeVersion.nombre}
-                </div>
-              </div>
-            </CardHeader>
-            
-            {/* Añadir controles de versión dentro del panel de Estado y Tratamiento */}
-            <div className="px-4 py-2 border-b flex flex-wrap gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="h-7"
-                onClick={handleCreateVersion}
-              >
-                <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                <span className="text-xs">Nueva versión</span>
-              </Button>
-              
-              {planVersions.length > 1 && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-7 text-red-500 hover:text-red-600"
-                  onClick={() => handleDeleteVersion(activeVersion.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 mr-1" />
-                  <span className="text-xs">Eliminar</span>
-                </Button>
-              )}
-            </div>
-            
-            {/* Selector de versiones si hay más de una */}
-            {planVersions.length > 1 && (
-              <div className="px-4 py-2 border-b flex flex-wrap gap-2">
-                <div className="flex w-full flex-wrap gap-1">
-                  {planVersions.map((version) => (
-                    <Button 
-                      key={version.id}
-                      variant={version.isActive ? "default" : "outline"}
-                      size="sm"
-                      className={cn("h-7 flex-1 min-w-0",
-                        version.isActive && "bg-slate-800 text-white hover:bg-slate-700"
-                      )}
-                      onClick={() => handleChangeVersion(version.id)}
-                    >
-                      <span className="text-xs truncate">{version.nombre}</span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <CardContent className="flex-grow p-4 pt-3 overflow-hidden max-h-[590px]"> 
-              <div className="h-full overflow-y-auto pr-1">
-                <ToothStatusComponent
-                  selectedTooth={selectedTooth}
-                  onUpdateStatus={handleUpdateStatus}
-                  toothStatus={toothStatus}
-                  patientType={patientType}
-                  servicios={filteredServicios}
-                  className="h-full"
-                  customCosts={customCosts}
-                  setCustomCosts={setCustomCosts}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <ToothStatusPanel
+            activeVersion={activeVersion}
+            selectedTooth={selectedTooth}
+            handleUpdateStatus={handleUpdateStatus}
+            toothStatus={toothStatus}
+            patientType={patientType}
+            filteredServicios={filteredServicios}
+            customCosts={customCosts}
+            setCustomCosts={setCustomCosts}
+            planVersions={planVersions}
+            handleCreateVersion={handleCreateVersion}
+            handleDeleteVersion={handleDeleteVersion}
+            handleChangeVersion={handleChangeVersion}
+          />
         </div>
       </div>
 
       {/* Resumen del plan */}
-      <Card className="mt-6">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Resumen del Tratamiento</CardTitle>
-            <CardDescription className="text-slate-600">
-              Servicios incluidos en esta versión ({activeVersion.nombre})
-            </CardDescription>
-          </div>
-          <div>
-            <TreatmentReport 
-              toothStatus={toothStatus}
-              patientName={patientName}
-              servicios={servicios}
-              planVersions={planVersions}
-              activeVersionId={activeVersion.id}
-              onVersionChange={handleChangeVersion}
-              customCosts={customCosts}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {Object.keys(treatmentsByTooth).length > 0 ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(treatmentsByTooth).map(([tooth, data]) => {
-                  if (data.treatments.length === 0) return null;
-                  
-                  const toothLabel = isGeneralAreaKey(tooth) 
-                    ? {
-                        "boca-completa": "Boca Completa",
-                        "arco-superior": "Arco Superior",
-                        "arco-inferior": "Arco Inferior"
-                      }[tooth]
-                    : `Diente ${tooth}`;
-                  
-                  return (
-                    <div key={tooth} className="border rounded-md p-4">
-                      <h3 className="font-medium mb-2">{toothLabel}</h3>
-                      
-                      {!data.isGeneral && data.conditions.length > 0 && (
-                        <div className="mb-3">
-                          <h4 className="text-sm font-medium text-slate-600 mb-1">Condiciones:</h4>
-                          <ul className="list-disc pl-5 text-sm">
-                            {data.conditions.map(condition => (
-                              <li key={condition.id}>{condition.status}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      <div>
-                        <h4 className="text-sm font-medium text-slate-600 mb-1">Tratamientos:</h4>
-                        <div className="space-y-2">
-                          {data.treatments.map(treatment => {
-                            const servicio = servicios.find(s => s.id === treatment.servicio_id);
-                            if (!servicio) return null;
-                            const cost = getServiceCost(treatment.servicio_id, treatment.status, tooth);
-                            return (
-                              <div key={treatment.id} className="flex items-center">
-                                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: treatment.color }}></div>
-                                <span className="flex-1 text-slate-900">{treatment.status}</span>
-                                <span 
-                                  className="text-right font-medium cursor-pointer hover:bg-slate-100 px-2 py-1 rounded"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditCost(treatment.status, treatment.servicio_id);
-                                  }}
-                                >
-                                  ${Math.round(cost).toLocaleString('en-US')}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div className="flex justify-end pt-4 border-t">
-                <div className="text-right">
-                  <p className="text-lg font-bold">Costo Total:</p>
-                  <p className="text-2xl font-bold">${Math.round(totalCost).toLocaleString('en-US')}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-center text-slate-600 py-6">
-              No se han registrado tratamientos. Seleccione dientes y asigne tratamientos para crear un plan.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <TreatmentSummary
+        treatmentsByTooth={treatmentsByTooth}
+        servicios={servicios}
+        getServiceCost={getServiceCost}
+        handleEditCost={handleEditCost}
+        totalCost={totalCost}
+        activeVersion={activeVersion}
+        planVersions={planVersions}
+        toothStatus={toothStatus}
+        patientName={patientName}
+        customCosts={customCosts}
+        handleChangeVersion={handleChangeVersion}
+        handleUpdateStatus={handleUpdateStatus}
+        setToothStatus={setToothStatus}
+        setPlanVersions={setPlanVersions}
+        toast={toast}
+      />
     </motion.div>
-  )
+  );
 } 

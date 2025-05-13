@@ -13,25 +13,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Check, ChevronsUpDown, ChevronDown } from "lucide-react";
+import { Check, ChevronsUpDown, ChevronDown } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { ServicioCreate } from "@/lib/database";
+import { Servicio } from "@/lib/database";
 import { getServicios } from "@/lib/serviciosService";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -40,48 +26,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface AddServiceDialogProps {
-  buttonVariant?: "default" | "outline" | "ghost";
-  buttonText?: string;
-  onSubmit?: (serviceData: ServicioCreate) => void;
+interface EditServiceDialogProps {
+  service: Servicio;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit?: (serviceData: Servicio) => void;
 }
 
-export function AddServiceDialog({
-  buttonVariant = "outline",
-  buttonText = "Agregar servicio",
+export function EditServiceDialog({
+  service,
+  open,
+  onOpenChange,
   onSubmit,
-}: AddServiceDialogProps) {
-  const [open, setOpen] = useState(false);
+}: EditServiceDialogProps) {
   const [especialidadPopoverOpen, setEspecialidadPopoverOpen] = useState(false);
   const [tipoPacientePopoverOpen, setTipoPacientePopoverOpen] = useState(false);
   const [especialidades, setEspecialidades] = useState<string[]>([]);
+  const [formData, setFormData] = useState<Servicio>(service);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tipoPacienteRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState<ServicioCreate>({
-    nombre_servicio: "",
-    costo: 0,
-    duracion: 30,
-    descripcion: "",
-    especialidad: "",
-    tipo_paciente: "General",
-  });
 
-  // Efecto para cerrar el menú de tipo de paciente al hacer clic fuera
+  // Effect to close the especialidad menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tipoPacienteRef.current && !tipoPacienteRef.current.contains(event.target as Node)) {
-        setTipoPacientePopoverOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Efecto para cerrar el menú de especialidad al hacer clic fuera
-  useEffect(() => {
+    if (!open) return; // Only add listeners when dialog is open
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setEspecialidadPopoverOpen(false);
@@ -92,15 +60,31 @@ export function AddServiceDialog({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [open]);
 
-  // Cargar especialidades existentes
+  // Effect to close the tipo_paciente menu when clicking outside
+  useEffect(() => {
+    if (!open) return; // Only add listeners when dialog is open
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tipoPacienteRef.current && !tipoPacienteRef.current.contains(event.target as Node)) {
+        setTipoPacientePopoverOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
+
+  // Load existing specialties
   useEffect(() => {
     if (open) {
       const loadEspecialidades = async () => {
         try {
           const servicios = await getServicios();
-          // Extraer especialidades únicas
+          // Extract unique specialties
           const uniqueEspecialidades = Array.from(
             new Set(servicios.map(servicio => servicio.especialidad).filter(Boolean) as string[])
           ).sort((a, b) => a.localeCompare(b));
@@ -113,6 +97,11 @@ export function AddServiceDialog({
       loadEspecialidades();
     }
   }, [open]);
+
+  // Update form data when service prop changes
+  useEffect(() => {
+    setFormData(service);
+  }, [service]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -134,44 +123,21 @@ export function AddServiceDialog({
     }
   };
 
-  const handleSelectEspecialidad = (especialidad: string) => {
-    setFormData(prev => ({
-      ...prev,
-      especialidad
-    }));
-    setEspecialidadPopoverOpen(false);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSubmit) {
       onSubmit(formData);
     }
-    // Reset form and close dialog
-    setFormData({
-      nombre_servicio: "",
-      costo: 0,
-      duracion: 30,
-      descripcion: "",
-      especialidad: "",
-      tipo_paciente: "General",
-    });
-    setOpen(false);
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant={buttonVariant} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white">
-          <Plus className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
-          {buttonText}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader className="mb-2">
-          <DialogTitle>Agregar nuevo servicio</DialogTitle>
+          <DialogTitle>Editar servicio</DialogTitle>
           <DialogDescription>
-            Complete el formulario para registrar un nuevo servicio dental.
+            Modifique la información del servicio dental.
           </DialogDescription>
         </DialogHeader>
 
@@ -253,88 +219,6 @@ export function AddServiceDialog({
                 className="space-y-2"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.25, duration: 0.3 }}
-              >
-                <Label htmlFor="especialidad">Especialidad *</Label>
-                <div className="relative">
-                  <div className="relative w-full" ref={dropdownRef}>
-                    <Input
-                      id="especialidad"
-                      name="especialidad"
-                      placeholder="Selecciona o escribe una especialidad"
-                      value={formData.especialidad || ""}
-                      onChange={handleInputChange}
-                      className="pr-10"
-                      required
-                      onClick={() => setEspecialidadPopoverOpen(!especialidadPopoverOpen)}
-                    />
-                    <div 
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                      onClick={() => setEspecialidadPopoverOpen(!especialidadPopoverOpen)}
-                    >
-                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-                    </div>
-
-                    {especialidadPopoverOpen && especialidades.length > 0 && (
-                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                        {/* Opciones existentes */}
-                        {especialidades.map((esp) => (
-                          <div
-                            key={esp}
-                            className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-gray-100 ${
-                              formData.especialidad === esp ? 'bg-gray-100' : ''
-                            }`}
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                especialidad: esp
-                              }));
-                              setEspecialidadPopoverOpen(false);
-                            }}
-                          >
-                            <span className="block truncate">{esp}</span>
-                            {formData.especialidad === esp && (
-                              <span className="absolute inset-y-0 right-0 flex items-center pr-4">
-                                <Check className="h-4 w-4 text-emerald-600" />
-                              </span>
-                            )}
-                          </div>
-                        ))}
-
-                        {/* Separador */}
-                        <div className="border-t border-gray-200 my-1"></div>
-
-                        {/* Agregar nueva */}
-                        <div
-                          className="relative cursor-pointer select-none py-2 pl-3 pr-9 text-blue-600 hover:bg-blue-50 flex items-center"
-                          onClick={() => {
-                            // Si ya hay texto escrito que no coincide con ninguna especialidad existente, usarlo como nueva especialidad
-                            if (formData.especialidad && typeof formData.especialidad === 'string' && !especialidades.includes(formData.especialidad)) {
-                              const newEspecialidad = formData.especialidad;
-                              setEspecialidades(prev => 
-                                [...prev, newEspecialidad].sort((a, b) => a.localeCompare(b))
-                              );
-                              setEspecialidadPopoverOpen(false);
-                            }
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          <span className="block truncate">
-                            {formData.especialidad && !especialidades.includes(formData.especialidad)
-                              ? `Agregar "${formData.especialidad}"`
-                              : "Escribe una nueva especialidad"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                className="space-y-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
                 transition={{ delay: 0.28, duration: 0.3 }}
               >
                 <Label htmlFor="tipo_paciente">Tipo de paciente *</Label>
@@ -387,6 +271,87 @@ export function AddServiceDialog({
                 className="space-y-2"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
+                transition={{ delay: 0.25, duration: 0.3 }}
+              >
+                <Label htmlFor="especialidad">Especialidad *</Label>
+                <div className="relative">
+                  <div className="relative w-full" ref={dropdownRef}>
+                    <Input
+                      id="especialidad"
+                      name="especialidad"
+                      placeholder="Selecciona o escribe una especialidad"
+                      value={formData.especialidad || ""}
+                      onChange={handleInputChange}
+                      className="pr-10"
+                      required
+                      onClick={() => setEspecialidadPopoverOpen(!especialidadPopoverOpen)}
+                    />
+                    <div 
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                      onClick={() => setEspecialidadPopoverOpen(!especialidadPopoverOpen)}
+                    >
+                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    {especialidadPopoverOpen && especialidades.length > 0 && (
+                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                        {/* Existing options */}
+                        {especialidades.map((esp) => (
+                          <div
+                            key={esp}
+                            className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-gray-100 ${
+                              formData.especialidad === esp ? 'bg-gray-100' : ''
+                            }`}
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                especialidad: esp
+                              }));
+                              setEspecialidadPopoverOpen(false);
+                            }}
+                          >
+                            <span className="block truncate">{esp}</span>
+                            {formData.especialidad === esp && (
+                              <span className="absolute inset-y-0 right-0 flex items-center pr-4">
+                                <Check className="h-4 w-4 text-emerald-600" />
+                              </span>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Separator */}
+                        <div className="border-t border-gray-200 my-1"></div>
+
+                        {/* Add new */}
+                        <div
+                          className="relative cursor-pointer select-none py-2 pl-3 pr-9 text-blue-600 hover:bg-blue-50 flex items-center"
+                          onClick={() => {
+                            // If there's text written that doesn't match any existing specialty, use it as a new specialty
+                            if (formData.especialidad && typeof formData.especialidad === 'string' && !especialidades.includes(formData.especialidad)) {
+                              const newEspecialidad = formData.especialidad;
+                              setEspecialidades(prev => 
+                                [...prev, newEspecialidad].sort((a, b) => a.localeCompare(b))
+                              );
+                              setEspecialidadPopoverOpen(false);
+                            }
+                          }}
+                        >
+                          <span className="block truncate">
+                            {formData.especialidad && !especialidades.includes(formData.especialidad)
+                              ? `Agregar "${formData.especialidad}"`
+                              : "Escribe una nueva especialidad"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="space-y-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ delay: 0.3, duration: 0.3 }}
               >
                 <Label htmlFor="descripcion">Descripción</Label>
@@ -403,10 +368,10 @@ export function AddServiceDialog({
           </AnimatePresence>
           
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white">Guardar servicio</Button>
+            <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white">Guardar cambios</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -34,19 +34,19 @@ interface ToothStatusProps {
 
 // Lista de condiciones (diagnósticos)
 const conditions = [
-  { name: "Fractura", value: "fractura", color: "#EF4444" },
-  { name: "Caries incipiente", value: "caries-incipiente", color: "#F59E0B" },
-  { name: "Caries activa", value: "caries-activa", color: "#DC2626" },
-  { name: "Pulpitis", value: "#7C3AED", color: "#7C3AED" },
-  { name: "Lesión periapical", value: "lesion-periapical", color: "#8B5CF6" },
   { name: "Ausente", value: "ausente", color: "#6B7280" },
-  { name: "Resto radicular", value: "resto-radicular", color: "#A16207" },
-  { name: "Pieza Ausente", value: "pieza-ausente", color: "#64748B" },
+  { name: "Caries activa", value: "caries-activa", color: "#DC2626" },
   { name: "Caries Fase I", value: "caries-fase-i", color: "#FDE68A" },
   { name: "Caries Fase II", value: "caries-fase-ii", color: "#FBBF24" },
   { name: "Caries Fase III", value: "caries-fase-iii", color: "#F59E42" },
   { name: "Caries Fase IV", value: "caries-fase-iv", color: "#EA580C" },
   { name: "Caries Fase V", value: "caries-fase-v", color: "#B91C1C" },
+  { name: "Caries incipiente", value: "caries-incipiente", color: "#F59E0B" },
+  { name: "Fractura", value: "fractura", color: "#EF4444" },
+  { name: "Lesión periapical", value: "lesion-periapical", color: "#8B5CF6" },
+  { name: "Pieza Ausente", value: "pieza-ausente", color: "#64748B" },
+  { name: "Pulpitis", value: "#7C3AED", color: "#7C3AED" },
+  { name: "Resto radicular", value: "resto-radicular", color: "#A16207" },
 ]
 
 // Función para formatear costos con separadores de miles

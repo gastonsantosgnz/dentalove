@@ -2,7 +2,7 @@
 
 import { Table } from "@tanstack/react-table";
 import { Button } from "@/components/ui";
-import { Trash, CircleAlert } from "lucide-react";
+import { Trash } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui";
 import { Servicio } from "@/lib/database";
+import { useState } from "react";
 
 interface DeleteSelectedDialogProps {
   table: Table<Servicio>;
@@ -23,13 +24,19 @@ interface DeleteSelectedDialogProps {
 
 export default function DeleteSelectedDialog({ table, onDelete }: DeleteSelectedDialogProps) {
   const selectedCount = table.getSelectedRowModel().rows.length;
+  const [open, setOpen] = useState(false);
   
   if (selectedCount === 0) {
     return null;
   }
   
+  const handleDelete = async () => {
+    await onDelete();
+    setOpen(false);
+  };
+  
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button className="ml-auto" variant="outline">
           <Trash
@@ -45,24 +52,16 @@ export default function DeleteSelectedDialog({ table, onDelete }: DeleteSelected
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
-        <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
-          <div
-            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
-            aria-hidden="true"
-          >
-            <CircleAlert className="opacity-80" size={16} strokeWidth={2} />
-          </div>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Eliminará permanentemente{" "}
-              {selectedCount} {selectedCount === 1 ? "servicio" : "servicios"} seleccionados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-        </div>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta acción no se puede deshacer. Eliminará permanentemente{" "}
+            {selectedCount} {selectedCount === 1 ? "servicio" : "servicios"} seleccionados.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onDelete}>Eliminar</AlertDialogAction>
+          <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

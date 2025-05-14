@@ -106,13 +106,6 @@ export function AddDoctorDialog({
     }
   }, [open]);
 
-  // Guardar referencia al botón trigger
-  const handleTriggerRef = useCallback((node: HTMLButtonElement | null) => {
-    if (node) {
-      triggerRef.current = node;
-    }
-  }, []);
-
   // Manejar la presentación del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +145,7 @@ export function AddDoctorDialog({
         <DialogTrigger asChild>
           {trigger ? (
             React.cloneElement(trigger as React.ReactElement, {
-              ref: handleTriggerRef
+              ref: triggerRef
             })
           ) : (
             <Button ref={triggerRef}>

@@ -74,17 +74,7 @@ export function DeleteDoctorAlertDialog({
   return (
     <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      <AlertDialogContent 
-        onPointerDownOutside={(e) => {
-          if (isDeleting) e.preventDefault();
-        }} 
-        onInteractOutside={(e) => {
-          if (isDeleting) e.preventDefault();
-        }}
-        onEscapeKeyDown={(e) => {
-          if (isDeleting) e.preventDefault();
-        }}
-      >
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
           <AlertDialogDescription>

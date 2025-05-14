@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -143,11 +143,7 @@ export function AddDoctorDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {shouldRenderTrigger && (
         <DialogTrigger asChild>
-          {trigger ? (
-            React.cloneElement(trigger as React.ReactElement, {
-              ref: triggerRef
-            })
-          ) : (
+          {trigger || (
             <Button ref={triggerRef}>
               <Plus className="-ms-1 me-2 h-4 w-4" />
               Nuevo Doctor

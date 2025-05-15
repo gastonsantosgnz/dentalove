@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ToothStatus } from "../DentalChart";
 import { Servicio } from "../ToothStatus";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, XCircle } from "lucide-react";
 import TreatmentReport from "../TreatmentReport";
 import { PlanVersion, ToothAreaData, isGeneralAreaKey } from "./types";
 
@@ -22,9 +22,10 @@ interface TreatmentSummaryProps {
   customCosts: Record<string, number>;
   handleChangeVersion: (versionId: string) => void;
   handleUpdateStatus: (tooth: string, status: string, color: string, type: "condition" | "treatment", serviceId?: string) => void;
-  setToothStatus: React.Dispatch<React.SetStateAction<Record<string, ToothStatus[]>>>;
-  setPlanVersions: React.Dispatch<React.SetStateAction<PlanVersion[]>>;
-  toast: any;
+  setToothStatus?: React.Dispatch<React.SetStateAction<Record<string, ToothStatus[]>>>;
+  setPlanVersions?: React.Dispatch<React.SetStateAction<PlanVersion[]>>;
+  toast?: any;
+  isPlanSaved?: boolean;
 }
 
 export function TreatmentSummary({
@@ -42,7 +43,8 @@ export function TreatmentSummary({
   handleUpdateStatus,
   setToothStatus,
   setPlanVersions,
-  toast
+  toast,
+  isPlanSaved = false
 }: TreatmentSummaryProps) {
   
   // Función para eliminar completamente un diente y sus tratamientos/condiciones
@@ -54,41 +56,30 @@ export function TreatmentSummary({
         "arco-inferior": "área Arco Inferior"
       }[tooth] : `diente ${tooth}`}?`)) {
       
-      // Eliminar completamente la entrada del diente
-      const newToothStatus = { ...toothStatus };
-      delete newToothStatus[tooth];
-      setToothStatus(newToothStatus);
-      
-      // Actualizar todas las versiones del plan
-      setPlanVersions(currentVersions => 
-        currentVersions.map(version => {
-          if (version.isActive) {
-            const versionToothStatus = { ...version.toothStatus };
-            delete versionToothStatus[tooth];
-            
-            // Calcular nuevo costo total para la versión activa
-            const newTotal = Object.entries(versionToothStatus).reduce((total, [toothId, statuses]) => {
-              const treatments = statuses.filter(s => s.type === "treatment");
-              return total + treatments.reduce((subTotal, treatment) => {
-                const cost = getServiceCost(treatment.servicio_id, treatment.status, toothId);
-                return subTotal + cost;
-              }, 0);
-            }, 0);
-            
-            return {
-              ...version,
-              toothStatus: versionToothStatus,
-              totalCost: newTotal
-            };
-          }
-          return version;
-        })
+      // Actualizar el estado mediante el handleUpdateStatus
+      handleUpdateStatus(tooth, '', '', 'treatment');
+    }
+  };
+  
+  // Función para eliminar un tratamiento específico
+  const removeTreatment = (tooth: string, treatmentId: string) => {
+    // Crear copia del estado actual
+    const newToothStatus = { ...toothStatus };
+    
+    // Si existe el diente
+    if (newToothStatus[tooth]) {
+      // Filtrar para eliminar solo el tratamiento específico
+      newToothStatus[tooth] = newToothStatus[tooth].filter(
+        status => status.id !== treatmentId
       );
       
-      toast({
-        title: "Diente eliminado",
-        description: `Se han eliminado todos los tratamientos y condiciones asignados.`
-      });
+      // Si no quedan estatuses, eliminar el diente completamente
+      if (newToothStatus[tooth].length === 0) {
+        delete newToothStatus[tooth];
+      }
+      
+      // Actualizar el estado mediante el handleUpdateStatus
+      handleUpdateStatus(tooth, '', '', 'treatment');
     }
   };
   
@@ -110,6 +101,7 @@ export function TreatmentSummary({
             activeVersionId={activeVersion.id}
             onVersionChange={handleChangeVersion}
             customCosts={customCosts}
+            isPlanSaved={isPlanSaved}
           />
         </div>
       </CardHeader>
@@ -136,7 +128,7 @@ export function TreatmentSummary({
                         variant="ghost" 
                         size="sm" 
                         className="h-6 w-6 p-0 text-slate-500 hover:text-red-500 hover:bg-transparent"
-                        title="Eliminar tratamientos"
+                        aria-label="Eliminar tratamientos"
                         onClick={() => clearToothCompletely(tooth)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -162,18 +154,17 @@ export function TreatmentSummary({
                           if (!servicio) return null;
                           const cost = getServiceCost(treatment.servicio_id, treatment.status, tooth);
                           return (
-                            <div key={treatment.id} className="flex items-center">
+                            <div key={treatment.id} className="flex items-center group">
                               <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: treatment.color }}></div>
-                              <span className="flex-1 text-slate-900">{treatment.status}</span>
-                              <span 
-                                className="text-right font-medium cursor-pointer hover:bg-slate-100 px-2 py-1 rounded"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditCost(treatment.status, treatment.servicio_id);
-                                }}
-                              >
+                              <span className="flex-1 text-slate-900 text-sm">{treatment.status}</span>
+                              <span className="text-right font-medium px-2 py-1 text-sm">
                                 ${Math.round(cost).toLocaleString('en-US')}
                               </span>
+                              <XCircle 
+                                className="h-4 w-4 text-slate-300 hover:text-red-500 cursor-pointer ml-1"
+                                onClick={() => removeTreatment(tooth, treatment.id)}
+                                aria-label="Eliminar tratamiento"
+                              />
                             </div>
                           );
                         })}

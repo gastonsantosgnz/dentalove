@@ -417,23 +417,120 @@ export async function saveCompletePlanTratamiento(
     toothStatus: Record<string, ToothStatus[]>;
     totalCost: number;
     isActive: boolean;
-  }>
+    editableCosts?: Record<string, number>;
+  }>,
+  existingPlanId?: string // ID del plan existente para actualizarlo
 ) {
-  // 1. Insertar el plan de tratamiento principal
-  const { data: plan, error } = await supabase
-    .from('planes_tratamiento')
-    .insert({
-      paciente_id: planData.paciente_id,
-      fecha: planData.fecha,
-      observaciones: planData.observaciones,
-      costo_total: planData.costo_total,
-    })
-    .select('id')
-    .single();
+  let planId: string;
+  let plan: any;
 
-  if (error) throw error;
+  // Objeto para almacenar los estados de progreso de servicios existentes
+  let serviciosProgresoExistentes: Record<string, any> = {};
 
-  const planId = plan.id;
+  // Determinar si estamos creando un nuevo plan o actualizando uno existente
+  if (existingPlanId) {
+    // Actualizar plan existente
+    const { data: updatedPlan, error } = await supabase
+      .from('planes_tratamiento')
+      .update({
+        paciente_id: planData.paciente_id,
+        fecha: planData.fecha,
+        observaciones: planData.observaciones,
+        costo_total: planData.costo_total,
+      })
+      .eq('id', existingPlanId)
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    
+    plan = updatedPlan;
+    planId = existingPlanId;
+    
+    // Antes de eliminar las zonas, obtenemos los servicios_progreso existentes
+    // para preservar su estado después de actualizar el plan
+    try {
+      // 1. Obtener todas las zonas del plan
+      const { data: zonas, error: zonasError } = await supabase
+        .from('plan_zonas')
+        .select('id')
+        .eq('plan_id', planId);
+      
+      if (zonasError) throw zonasError;
+      
+      // 2. Para cada zona, obtener sus tratamientos
+      if (zonas && zonas.length > 0) {
+        for (const zona of zonas) {
+          const { data: tratamientos, error: tratamientosError } = await supabase
+            .from('zona_tratamientos')
+            .select('id, nombre_tratamiento, servicio_id')
+            .eq('zona_id', zona.id);
+          
+          if (tratamientosError) throw tratamientosError;
+          
+          // 3. Para cada tratamiento, buscar si tiene servicios_progreso
+          if (tratamientos && tratamientos.length > 0) {
+            for (const tratamiento of tratamientos) {
+              const { data: progreso, error: progresoError } = await supabase
+                .from('servicios_progreso')
+                .select('*')
+                .eq('zona_tratamiento_id', tratamiento.id);
+              
+              if (progresoError) throw progresoError;
+              
+              // 4. Guardar el servicio_progreso si existe y no está pendiente
+              if (progreso && progreso.length > 0) {
+                // Solo guardamos los que no están en estado pendiente
+                const servicioNoDefault = progreso.find(p => p.estado !== 'pendiente');
+                if (servicioNoDefault) {
+                  // Creamos una clave compuesta por tratamiento_nombre + servicio_id
+                  // para poder identificar el mismo tratamiento después
+                  const clave = `${tratamiento.nombre_tratamiento}_${tratamiento.servicio_id || 'null'}`;
+                  serviciosProgresoExistentes[clave] = servicioNoDefault;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error al obtener servicios de progreso existentes:", error);
+      // Continuamos con la operación aunque haya fallado esta parte
+    }
+    
+    // Eliminar zonas existentes para este plan
+    // Debido a las restricciones de CASCADE, esto eliminará también los tratamientos y condiciones
+    await supabase
+      .from('plan_zonas')
+      .delete()
+      .eq('plan_id', planId);
+      
+    // Eliminar versiones existentes
+    await supabase
+      .from('plan_versiones')
+      .delete()
+      .eq('plan_id', planId);
+  } else {
+    // Crear nuevo plan
+    const { data: newPlan, error } = await supabase
+      .from('planes_tratamiento')
+      .insert({
+        paciente_id: planData.paciente_id,
+        fecha: planData.fecha,
+        observaciones: planData.observaciones,
+        costo_total: planData.costo_total,
+      })
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    
+    plan = newPlan;
+    planId = newPlan.id;
+  }
+
+  // Mapa para almacenar los tratamientos nuevos por nombre y servicio_id
+  const mapaTratamientosNuevos: Record<string, string> = {};
 
   // 2. Si hay versiones, guardarlas
   if (versiones && versiones.length > 0) {
@@ -481,12 +578,25 @@ export async function saveCompletePlanTratamiento(
         for (const status of statuses) {
           if (status.type === 'treatment') {
             // Insertar tratamiento
-            await supabase.from('zona_tratamientos').insert({
-              zona_id: zonaId,
-              servicio_id: status.servicio_id,
-              nombre_tratamiento: status.status,
-              color: status.color,
-            });
+            const { data: tratamiento, error: tratamientoError } = await supabase
+              .from('zona_tratamientos')
+              .insert({
+                zona_id: zonaId,
+                servicio_id: status.servicio_id,
+                nombre_tratamiento: status.status,
+                color: status.color,
+              })
+              .select('id')
+              .single();
+
+            if (tratamientoError) throw tratamientoError;
+            
+            // Si es la versión activa y estamos editando un plan existente,
+            // creamos un mapa para relacionar los tratamientos antiguos con los nuevos
+            if (version.isActive && existingPlanId) {
+              const clave = `${status.status}_${status.servicio_id || 'null'}`;
+              mapaTratamientosNuevos[clave] = tratamiento.id;
+            }
           } else if (status.type === 'condition') {
             // Insertar condición
             await supabase.from('zona_condiciones').insert({
@@ -496,6 +606,45 @@ export async function saveCompletePlanTratamiento(
             });
           }
         }
+      }
+    }
+    
+    // Restaurar los estados de servicios progreso para los tratamientos de la versión activa
+    if (existingPlanId && Object.keys(serviciosProgresoExistentes).length > 0) {
+      try {
+        // Buscar la versión activa recién creada
+        const { data: activeVersion, error: versionError } = await supabase
+          .from('plan_versiones')
+          .select('id')
+          .eq('plan_id', planId)
+          .eq('activa', true)
+          .single();
+          
+        if (versionError) throw versionError;
+        
+        // Para cada servicio progreso existente, crear uno nuevo asociado al nuevo tratamiento
+        for (const [clave, servicio] of Object.entries(serviciosProgresoExistentes)) {
+          // Si encontramos el nuevo tratamiento correspondiente
+          if (mapaTratamientosNuevos[clave]) {
+            // Crear nuevo servicio progreso con el mismo estado, fecha, monto, etc.
+            await supabase
+              .from('servicios_progreso')
+              .insert({
+                paciente_id: planData.paciente_id,
+                plan_id: planId,
+                version_id: activeVersion.id,
+                zona_tratamiento_id: mapaTratamientosNuevos[clave],
+                estado: servicio.estado,
+                fecha_realizacion: servicio.fecha_realizacion,
+                monto_pagado: servicio.monto_pagado,
+                fecha_pago: servicio.fecha_pago,
+                notas: servicio.notas
+              });
+          }
+        }
+      } catch (error) {
+        console.error("Error al restaurar estados de servicios:", error);
+        // Continuamos con la operación aunque falle esta parte
       }
     }
   } else {
@@ -538,12 +687,24 @@ export async function saveCompletePlanTratamiento(
       for (const status of statuses) {
         if (status.type === 'treatment') {
           // Insertar tratamiento
-          await supabase.from('zona_tratamientos').insert({
-            zona_id: zonaId,
-            servicio_id: status.servicio_id,
-            nombre_tratamiento: status.status,
-            color: status.color,
-          });
+          const { data: tratamiento, error: tratamientoError } = await supabase
+            .from('zona_tratamientos')
+            .insert({
+              zona_id: zonaId,
+              servicio_id: status.servicio_id,
+              nombre_tratamiento: status.status,
+              color: status.color,
+            })
+            .select('id')
+            .single();
+
+          if (tratamientoError) throw tratamientoError;
+          
+          // Si estamos editando un plan existente, registramos el nuevo tratamiento
+          if (existingPlanId) {
+            const clave = `${status.status}_${status.servicio_id || 'null'}`;
+            mapaTratamientosNuevos[clave] = tratamiento.id;
+          }
         } else if (status.type === 'condition') {
           // Insertar condición
           await supabase.from('zona_condiciones').insert({
@@ -552,6 +713,35 @@ export async function saveCompletePlanTratamiento(
             color: status.color,
           });
         }
+      }
+    }
+    
+    // Restaurar los estados de servicios progreso si es que existen
+    if (existingPlanId && Object.keys(serviciosProgresoExistentes).length > 0) {
+      try {
+        // Para cada servicio progreso existente, crear uno nuevo asociado al nuevo tratamiento
+        for (const [clave, servicio] of Object.entries(serviciosProgresoExistentes)) {
+          // Si encontramos el nuevo tratamiento correspondiente
+          if (mapaTratamientosNuevos[clave]) {
+            // Crear nuevo servicio progreso con el mismo estado, fecha, monto, etc.
+            await supabase
+              .from('servicios_progreso')
+              .insert({
+                paciente_id: planData.paciente_id,
+                plan_id: planId,
+                version_id: versionId,
+                zona_tratamiento_id: mapaTratamientosNuevos[clave],
+                estado: servicio.estado,
+                fecha_realizacion: servicio.fecha_realizacion,
+                monto_pagado: servicio.monto_pagado,
+                fecha_pago: servicio.fecha_pago,
+                notas: servicio.notas
+              });
+          }
+        }
+      } catch (error) {
+        console.error("Error al restaurar estados de servicios:", error);
+        // Continuamos con la operación aunque falle esta parte
       }
     }
   }

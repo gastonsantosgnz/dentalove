@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Layers } from "lucide-react";
+import { ChevronLeft, Layers, Edit, Printer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -23,6 +23,7 @@ import {
 } from "@/components/treatment-plan";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import TreatmentReport from "@/components/TreatmentReport";
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -55,6 +56,7 @@ export default function TreatmentPlanDetailsPage() {
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [versions, setVersions] = useState<PlanVersion[]>([]);
   const [activeVersion, setActiveVersionState] = useState<PlanVersion | null>(null);
+  const [versionsToothStatus, setVersionsToothStatus] = useState<Record<string, Record<string, ToothStatus[]>>>({});
   
   useEffect(() => {
     const loadData = async () => {
@@ -84,6 +86,20 @@ export default function TreatmentPlanDetailsPage() {
         // Load services for reference
         const services = await getServicios();
         setServicios(services);
+        
+        // Load toothStatus for all versions
+        const versionsData: Record<string, Record<string, ToothStatus[]>> = {};
+        
+        for (const ver of planVersions) {
+          try {
+            const { toothStatus: versionToothStatus } = await getPlanVersionDetail(ver.id);
+            versionsData[ver.id] = versionToothStatus;
+          } catch (err) {
+            console.error(`Error loading version ${ver.id} data:`, err);
+          }
+        }
+        
+        setVersionsToothStatus(versionsData);
       } catch (err) {
         console.error("Error loading data:", err);
         setError("Error al cargar los datos. Intente nuevamente.");
@@ -102,7 +118,7 @@ export default function TreatmentPlanDetailsPage() {
 
   // Handler for back button
   const handleBack = () => {
-    router.push(`/pacientes/${pacienteId}/planes`);
+    router.back();
   };
   
   // Handler for version change
@@ -117,6 +133,12 @@ export default function TreatmentPlanDetailsPage() {
       // Update the UI
       setActiveVersionState(version);
       setToothStatus(versionToothStatus);
+      
+      // Update versions tooth status
+      setVersionsToothStatus(prev => ({
+        ...prev,
+        [versionId]: versionToothStatus
+      }));
       
       // Update total cost in plan
       if (plan) {
@@ -197,6 +219,30 @@ export default function TreatmentPlanDetailsPage() {
         <PlanSummaryCard plan={plan} />
 
         <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            className="gap-2"
+            onClick={() => router.push(`/pacientes/${pacienteId}/planes/${planId}/editar`)}
+          >
+            <Edit className="h-4 w-4" />
+            Editar Plan
+          </Button>
+          <TreatmentReport
+            toothStatus={toothStatus}
+            patientName={patientName}
+            servicios={servicios}
+            planVersions={versions.map(v => ({
+              id: v.id,
+              nombre: v.nombre,
+              toothStatus: versionsToothStatus[v.id] || {},
+              totalCost: v.costo_total,
+              isActive: v.activa
+            }))}
+            activeVersionId={activeVersion?.id || ''}
+            onVersionChange={handleVersionChange}
+            customCosts={{}}
+            isPlanSaved={true}
+          />
           <DeletePlanButton planId={planId} onDeleted={handlePlanDeleted} />
         </div>
       </div>

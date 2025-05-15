@@ -49,6 +49,7 @@ interface TreatmentReportProps {
   activeVersionId?: string
   onVersionChange?: (versionId: string) => void
   customCosts?: Record<string, number>
+  isPlanSaved?: boolean
 }
 
 export default function TreatmentReport({
@@ -58,7 +59,8 @@ export default function TreatmentReport({
   planVersions = [],
   activeVersionId = "",
   onVersionChange,
-  customCosts = {}
+  customCosts = {},
+  isPlanSaved = true
 }: TreatmentReportProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
@@ -511,6 +513,8 @@ export default function TreatmentReport({
         variant="outline"
         className="flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
         onClick={() => setOpen(true)}
+        disabled={!isPlanSaved}
+        title={!isPlanSaved ? "Guarde el plan antes de generar el reporte" : ""}
       >
         <Printer className="h-4 w-4" />
         Generar Reporte

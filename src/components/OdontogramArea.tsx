@@ -28,6 +28,13 @@ interface OdontogramAreaProps {
   servicios: Servicio[]
   pacienteId?: string  // Nuevo prop para identificar al paciente
   onPlanSaved?: () => void  // Callback para notificar cuando se guarda un plan
+  existingPlan?: {  // Nuevo prop para edición de planes existentes
+    planId: string
+    planData: any
+    toothStatus: Record<string, ToothStatus[]>
+    versions: any[]
+  }
+  isEditing?: boolean  // Flag to indicate if we're editing an existing plan
 }
 
 // Componente principal OdontogramArea
@@ -37,7 +44,9 @@ export default function OdontogramArea({
   patientType,
   servicios = [],
   pacienteId = "",
-  onPlanSaved
+  onPlanSaved,
+  existingPlan,
+  isEditing = false
 }: OdontogramAreaProps) {
   // Añadimos toast para notificaciones
   const { toast } = useToast();
@@ -54,8 +63,10 @@ export default function OdontogramArea({
   // Estado para el diente seleccionado, puede ser un número o un área general
   const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
   
-  // Estado para almacenar los estados de los dientes
-  const [toothStatus, setToothStatus] = useState<Record<string, ToothStatus[]>>({});
+  // Estados iniciales basados en si estamos editando o creando un nuevo plan
+  const [toothStatus, setToothStatus] = useState<Record<string, ToothStatus[]>>(
+    existingPlan ? existingPlan.toothStatus : {}
+  );
   
   // Estado para la especialidad seleccionada
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>("Todas");
@@ -63,16 +74,30 @@ export default function OdontogramArea({
   // Add state for editable costs
   const [customCosts, setCustomCosts] = useState<Record<string, number>>({});
 
-  // Nuevo estado para manejar versiones de planes
-  const [planVersions, setPlanVersions] = useState<PlanVersion[]>([
-    {
+  // Initialize versions with existing versions if provided
+  const initialVersions = useMemo(() => {
+    if (existingPlan && existingPlan.versions && existingPlan.versions.length > 0) {
+      return existingPlan.versions.map((version: any) => ({
+        id: version.id,
+        nombre: version.nombre,
+        toothStatus: version.toothStatus || {},
+        totalCost: version.costo_total || 0,
+        isActive: version.activa || false,
+        editableCosts: version.editableCosts || {}
+      }));
+    }
+    
+    return [{
       id: uuidv4(),
       nombre: "Versión 1",
-      toothStatus: {},
-      totalCost: 0,
+      toothStatus: existingPlan ? existingPlan.toothStatus : {},
+      totalCost: existingPlan ? existingPlan.planData.costo_total : 0,
       isActive: true
-    }
-  ]);
+    }];
+  }, [existingPlan]);
+  
+  // Estado para manejar versiones de planes
+  const [planVersions, setPlanVersions] = useState<PlanVersion[]>(initialVersions);
   
   // Generar lista dinámica de especialidades desde los servicios disponibles
   const specialties = useMemo(() => {
@@ -387,8 +412,8 @@ export default function OdontogramArea({
       
       const planData = {
         paciente_id: pacienteId,
-        fecha: new Date().toISOString(),
-        observaciones: "",
+        fecha: existingPlan ? existingPlan.planData.fecha : new Date().toISOString(),
+        observaciones: existingPlan ? existingPlan.planData.observaciones : "",
         costo_total: totalCost,
       };
       
@@ -402,31 +427,35 @@ export default function OdontogramArea({
           totalCost: version.totalCost,
           isActive: version.isActive,
           editableCosts: version.id === activeVersion.id ? customCosts : version.editableCosts
-        }))
+        })),
+        isEditing ? existingPlan?.planId : undefined // Pass the existing plan ID if editing
       );
       
       setSaveStatus("success");
       
       toast({
-        title: "Plan guardado",
-        description: "El plan de tratamiento se ha guardado correctamente con todas sus versiones"
+        title: isEditing ? "Plan actualizado" : "Plan guardado",
+        description: isEditing 
+          ? "El plan de tratamiento se ha actualizado correctamente" 
+          : "El plan de tratamiento se ha guardado correctamente con todas sus versiones"
       });
       
-      if (onPlanSaved) {
+      // If we're editing, we still want to call onPlanSaved to notify the parent component
+      if (isEditing && onPlanSaved) {
         onPlanSaved();
       }
       
-      // Resetear el estado después de 3 segundos
+      // Resetear el estado después de 5 segundos
       setTimeout(() => {
         setSaveStatus("idle");
-      }, 3000);
+      }, 5000);
     } catch (error) {
-      console.error("Error al guardar el plan:", error);
+      console.error(isEditing ? "Error al actualizar el plan:" : "Error al guardar el plan:", error);
       setSaveStatus("error");
       
       toast({
-        title: "Error al guardar",
-        description: "Ocurrió un error al guardar el plan. Intente nuevamente.",
+        title: isEditing ? "Error al actualizar" : "Error al guardar",
+        description: "Ocurrió un error. Intente nuevamente.",
         variant: "destructive"
       });
       
@@ -437,7 +466,7 @@ export default function OdontogramArea({
     } finally {
       setIsSaving(false);
     }
-  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts]);
+  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan]);
 
   return (
     <motion.div 
@@ -448,7 +477,7 @@ export default function OdontogramArea({
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <div>
-          <h1 className="text-2xl font-bold">Plan Dental</h1>
+          <h1 className="text-2xl font-bold">{isEditing ? "Editar Plan Dental" : "Nuevo Plan Dental"}</h1>
           <p className="text-slate-600">
             Paciente: {patientName} ({patientType})
           </p>
@@ -469,12 +498,12 @@ export default function OdontogramArea({
             {isSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Guardando...
+                {isEditing ? "Actualizando..." : "Guardando..."}
               </>
             ) : saveStatus === "success" ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Guardado
+                {isEditing ? "Actualizado" : "Guardado"}
               </>
             ) : saveStatus === "error" ? (
               <>
@@ -482,7 +511,7 @@ export default function OdontogramArea({
                 Error
               </>
             ) : (
-              "Guardar Plan"
+              isEditing ? "Actualizar Plan" : "Guardar Plan"
             )}
           </Button>
         )}
@@ -549,9 +578,7 @@ export default function OdontogramArea({
         customCosts={customCosts}
         handleChangeVersion={handleChangeVersion}
         handleUpdateStatus={handleUpdateStatus}
-        setToothStatus={setToothStatus}
-        setPlanVersions={setPlanVersions}
-        toast={toast}
+        isPlanSaved={saveStatus === "success" || isEditing}
       />
     </motion.div>
   );

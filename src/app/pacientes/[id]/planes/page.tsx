@@ -127,8 +127,38 @@ export default function PatientTreatmentPlansPage() {
       )}
       
       {isLoading ? (
-        <div className="text-center py-8">
-          <p>Cargando planes de tratamiento...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          {[1, 2, 3, 4, 5, 6].map((item) => (
+            <Card key={item} className="overflow-hidden animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between">
+                  <div className="h-5 w-24 bg-slate-200 rounded-md"></div>
+                  <div className="h-5 w-32 bg-slate-200 rounded-md"></div>
+                </div>
+                <div className="h-4 w-40 bg-slate-200 rounded-md mt-2"></div>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="space-y-3">
+                  <div className="h-4 w-full bg-slate-200 rounded-md"></div>
+                  <div className="flex justify-between items-center">
+                    <div className="h-4 w-28 bg-slate-200 rounded-md"></div>
+                    <div className="h-4 w-8 bg-slate-200 rounded-md"></div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="h-4 w-32 bg-slate-200 rounded-md"></div>
+                    <div className="h-4 w-8 bg-slate-200 rounded-md"></div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="h-5 w-16 bg-slate-200 rounded-md"></div>
+                    <div className="h-5 w-20 bg-slate-200 rounded-md"></div>
+                  </div>
+                </div>
+              </CardContent>
+              <div className="px-6 py-3 border-t">
+                <div className="h-9 w-full bg-slate-200 rounded-md"></div>
+              </div>
+            </Card>
+          ))}
         </div>
       ) : plans.length === 0 ? (
         <div className="text-center py-10 border rounded-lg bg-muted/30">

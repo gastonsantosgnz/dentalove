@@ -49,12 +49,10 @@ export default function PlanesPage() {
         onPatientSelected={handlePatientSelected} 
       />
 
-      {selectedPatientId && (
-        <PatientPlansList 
-          patientId={selectedPatientId} 
-          patientName={selectedPatient?.nombre_completo} 
-        />
-      )}
+      <PatientPlansList 
+        patientId={selectedPatientId} 
+        patientName={selectedPatient?.nombre_completo} 
+      />
     </div>
   );
 } 

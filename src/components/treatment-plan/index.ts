@@ -1,5 +1,10 @@
-export { PlanSummaryCard } from './PlanSummaryCard';
-export { TreatmentsTab } from './TreatmentsTab';
-export { ConditionsTab } from './ConditionsTab';
-export { DeletePlanButton } from './DeletePlanButton';
-export { PlanLoading, PlanError } from './PlanLoadingError'; 
+export * from "./TreatmentsTab";
+export * from "./ConditionsTab";
+export * from "./PlanSummaryCard";
+export * from "./DeletePlanButton";
+export * from "./PlanLoadingError";
+export * from "./FinancialSummaryCard";
+export * from "./GeneralTreatmentsTable";
+export * from "./SpecificToothTreatmentsTable";
+export * from "./utils";
+export * from "./dialogs"; 

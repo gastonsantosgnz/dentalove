@@ -48,24 +48,35 @@ export default function PatientSelector({ selectedPatientId, onPatientSelected }
     }
   };
 
+  // Función para manejar la opción "Todos los pacientes"
+  const handleSelectionChange = (value: string) => {
+    // Si seleccionamos "all", pasamos string vacía para mostrar todos los planes
+    if (value === "all") {
+      onPatientSelected("");
+    } else {
+      onPatientSelected(value);
+    }
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader className="pb-3">
         <CardTitle></CardTitle>
-        <CardDescription>Elija un paciente para ver o crear planes dentales</CardDescription>
+        <CardDescription>Elija un paciente para filtrar los planes dentales</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <Label htmlFor="patient-select">Paciente</Label>
             <Select 
-              value={selectedPatientId} 
-              onValueChange={onPatientSelected}
+              value={selectedPatientId || "all"} 
+              onValueChange={handleSelectionChange}
             >
               <SelectTrigger id="patient-select" className="w-full">
                 <SelectValue placeholder="Selecciona un paciente" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Todos los pacientes</SelectItem>
                 {isLoading ? (
                   <SelectItem value="loading" disabled>
                     Cargando pacientes...

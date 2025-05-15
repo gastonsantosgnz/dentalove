@@ -13,7 +13,7 @@ export interface PlanVersion {
 
 // Función auxiliar para verificar si una clave representa un área general
 export const isGeneralAreaKey = (key: string): boolean => {
-  return ["boca-completa", "arco-superior", "arco-inferior"].includes(key);
+  return ["boca-completa", "arco-superior", "arco-inferior", "supernumerario"].includes(key);
 }
 
 // Interfaz para el área general y de diente

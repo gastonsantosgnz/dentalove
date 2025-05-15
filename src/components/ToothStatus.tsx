@@ -73,18 +73,20 @@ export default function ToothStatusComponent({
   
   // Calcular información del diente seleccionado
   const { isGeneralArea, areaName, selectedArea } = useMemo(() => {
-    const isGeneral = selectedTooth !== null && ["boca-completa", "arco-superior", "arco-inferior"].includes(selectedTooth || "");
+    const isGeneral = selectedTooth !== null && ["boca-completa", "arco-superior", "arco-inferior", "supernumerario"].includes(selectedTooth || "");
     
     const tooth = selectedTooth ? {
       "boca-completa": "Boca Completa",
       "arco-superior": "Arco Superior",
-      "arco-inferior": "Arco Inferior"
+      "arco-inferior": "Arco Inferior",
+      "supernumerario": "Diente Supernumerario"
     }[selectedTooth] || `Diente ${selectedTooth}` : "";
     
     const area = selectedTooth ? 
       selectedTooth === "boca-completa" ? "Boca Completa" :
       selectedTooth === "arco-superior" ? "Maxilar Superior" :
       selectedTooth === "arco-inferior" ? "Maxilar Inferior" :
+      selectedTooth === "supernumerario" ? "Diente Supernumerario" :
       "Diente" : null;
       
     return { 

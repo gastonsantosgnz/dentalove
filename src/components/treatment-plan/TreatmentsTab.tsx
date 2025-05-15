@@ -55,6 +55,7 @@ const getAreaName = (key: string): string => {
     "boca-completa": "Boca Completa",
     "arco-superior": "Arco Superior",
     "arco-inferior": "Arco Inferior",
+    "supernumerario": "Diente Supernumerario"
   }[key] || `Diente ${key}`;
 };
 

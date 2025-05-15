@@ -8,7 +8,7 @@ interface ConditionsTabProps {
 
 // Helper to determine if key is a general area
 const isGeneralAreaKey = (key: string): boolean => {
-  return ["boca-completa", "arco-superior", "arco-inferior"].includes(key);
+  return ["boca-completa", "arco-superior", "arco-inferior", "supernumerario"].includes(key);
 };
 
 export function ConditionsTab({ toothStatus }: ConditionsTabProps) {

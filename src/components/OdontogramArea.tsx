@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { saveCompletePlanTratamiento } from "@/lib/planesTratamientoService"
 import { Check, X, Loader2 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 // Import the refactored components
 import {
@@ -55,10 +57,18 @@ export default function OdontogramArea({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   
-  // Determine chart type based on patient type
+  // Estado para controlar manualmente el tipo de odontograma
+  const [manualChartType, setManualChartType] = useState<"adult" | "child" | null>(null);
+  
+  // Determine chart type based on patient type or manual selection
   const effectiveChartType = useMemo(() => {
+    // Si hay una selección manual, usar esa
+    if (manualChartType !== null) {
+      return manualChartType;
+    }
+    // Si no, usar el tipo basado en la edad del paciente
     return patientType === "Pediátrico" ? "child" : "adult";
-  }, [patientType]);
+  }, [patientType, manualChartType]);
   
   // Estado para el diente seleccionado, puede ser un número o un área general
   const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
@@ -515,6 +525,19 @@ export default function OdontogramArea({
             )}
           </Button>
         )}
+      </div>
+      
+      {/* Selector de tipo de odontograma */}
+      <div className="flex justify-start items-center space-x-2 mb-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-xs">P</span>
+          <Switch 
+            id="chart-type"
+            checked={effectiveChartType === "adult"}
+            onCheckedChange={(checked) => setManualChartType(checked ? "adult" : "child")}
+          />
+          <span className="text-xs">A</span>
+        </div>
       </div>
       
       {/* Especialidades dentales */}

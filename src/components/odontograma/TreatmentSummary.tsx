@@ -53,7 +53,8 @@ export function TreatmentSummary({
       {
         "boca-completa": "área Boca Completa",
         "arco-superior": "área Arco Superior",
-        "arco-inferior": "área Arco Inferior"
+        "arco-inferior": "área Arco Inferior",
+        "supernumerario": "área Diente Supernumerario"
       }[tooth] : `diente ${tooth}`}?`)) {
       
       // Actualizar el estado mediante el handleUpdateStatus
@@ -116,7 +117,8 @@ export function TreatmentSummary({
                   ? {
                       "boca-completa": "Boca Completa",
                       "arco-superior": "Arco Superior",
-                      "arco-inferior": "Arco Inferior"
+                      "arco-inferior": "Arco Inferior",
+                      "supernumerario": "Diente Supernumerario"
                     }[tooth]
                   : `Diente ${tooth}`;
                 

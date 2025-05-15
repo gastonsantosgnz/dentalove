@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Ellipsis, Loader2, Edit, MoreHorizontal, Trash, FileText } from "lucide-react";
+import { Ellipsis, Loader2, Edit, MoreHorizontal, Trash, FileText, PlusCircle } from "lucide-react";
 import { getPlanesTratamientoPaciente } from "@/lib/planesTratamientoService";
 import { getPatientType } from "@/components/AddPatientDialog";
 import Link from 'next/link';
@@ -142,6 +142,12 @@ export function RowActions({ row, onPacienteUpdated, onPacienteDeleted }: RowAct
                   <span>Ver planes</span>
                 </Link>
               )}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/pacientes/${row.original.id}/nuevo-plan`} className="flex items-center">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                <span>Crear plan</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>Más</DropdownMenuSubTrigger>

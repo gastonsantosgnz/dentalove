@@ -4,7 +4,7 @@ import { es } from "date-fns/locale";
 
 // Helper to determine if key is a general area
 export const isGeneralAreaKey = (key: string): boolean => {
-  return ["boca-completa", "arco-superior", "arco-inferior"].includes(key);
+  return ["boca-completa", "arco-superior", "arco-inferior", "supernumerario"].includes(key);
 };
 
 // Helper to get descriptive name for area keys
@@ -13,6 +13,7 @@ export const getAreaName = (key: string): string => {
     "boca-completa": "Boca Completa",
     "arco-superior": "Arco Superior",
     "arco-inferior": "Arco Inferior",
+    "supernumerario": "Diente Supernumerario"
   }[key] || `Diente ${key}`;
 };
 

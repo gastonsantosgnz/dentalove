@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import DentalChart from "../DentalChart";
 import { ToothStatus } from "../DentalChart";
 import { isGeneralAreaKey } from "./types";
-import { Search } from "lucide-react";
+import { CirclePlus } from "lucide-react";
 
 interface DentalChartSectionProps {
   effectiveChartType: "adult" | "child";
@@ -25,11 +25,13 @@ export function DentalChartSection({
 }: DentalChartSectionProps) {
   // Estado para el input de número de diente
   const [toothInput, setToothInput] = useState("");
+  const [supernumeraryInput, setSupernumeraryInput] = useState("");
   
   // Handlers para los botones de áreas generales
   const selectBocaCompleta = useCallback(() => handleSelectTooth("boca-completa"), [handleSelectTooth]);
   const selectArcoSuperior = useCallback(() => handleSelectTooth("arco-superior"), [handleSelectTooth]);
   const selectArcoInferior = useCallback(() => handleSelectTooth("arco-inferior"), [handleSelectTooth]);
+  const selectSupernumerario = useCallback(() => handleSelectTooth("supernumerario"), [handleSelectTooth]);
 
   // Validar si el número de diente es válido para el tipo de odontograma
   const validateToothNumber = useCallback((toothNumber: number): boolean => {
@@ -112,6 +114,16 @@ export function DentalChartSection({
           >
             Inferior
           </Button>
+          <Button 
+            variant={selectedTooth === "supernumerario" ? "default" : "outline"}
+            size="sm"
+            onClick={selectSupernumerario}
+            className={cn(
+              selectedTooth === "supernumerario" && "bg-slate-800 text-white hover:bg-slate-700"
+            )}
+          >
+            Supernumerario
+          </Button>
           
           {/* Input para seleccionar diente por número */}
           <div className="flex items-center gap-1">
@@ -124,15 +136,6 @@ export function DentalChartSection({
               className="h-8 px-2 text-sm w-16"
               maxLength={2}
             />
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 p-0 px-2"
-              onClick={selectToothByNumber}
-              title="Buscar diente"
-            >
-              <Search className="h-3.5 w-3.5" />
-            </Button>
           </div>
         </div>
       </CardHeader>

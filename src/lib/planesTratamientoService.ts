@@ -992,7 +992,7 @@ export async function getPlanDetail(planId: string) {
 export function calculatePlanStatistics(toothStatus: Record<string, ToothStatus[]>) {
   let totalTreatments = 0;
   let totalTeeth = 0;
-  const generalAreas = ['boca-completa', 'arco-superior', 'arco-inferior'];
+  const generalAreas = ['boca-completa', 'arco-superior', 'arco-inferior', 'supernumerario'];
   
   // Contar tratamientos y dientes tratados
   Object.entries(toothStatus).forEach(([zone, statuses]) => {

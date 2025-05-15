@@ -29,7 +29,7 @@ const formatNumberWithCommas = (amount: number): string => {
 
 // Helper function to check if a key represents a general area
 const isGeneralAreaKey = (key: string): boolean => {
-  return ["boca-completa", "arco-superior", "arco-inferior"].includes(key);
+  return ["boca-completa", "arco-superior", "arco-inferior", "supernumerario"].includes(key);
 }
 
 // Helper function to get descriptive name for area keys
@@ -38,6 +38,7 @@ const getAreaName = (key: string): string => {
     "boca-completa": "Boca Completa",
     "arco-superior": "Arco Superior",
     "arco-inferior": "Arco Inferior",
+    "supernumerario": "Diente Supernumerario"
   }[key] || key; // Return key itself if not a special area
 }
 

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Check, ChevronsUpDown, ChevronDown } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ServicioCreate } from "@/lib/database";
@@ -44,12 +44,14 @@ interface AddServiceDialogProps {
   buttonVariant?: "default" | "outline" | "ghost";
   buttonText?: string;
   onSubmit?: (serviceData: ServicioCreate) => void;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function AddServiceDialog({
   buttonVariant = "outline",
   buttonText = "Agregar servicio",
   onSubmit,
+  onOpenChange,
 }: AddServiceDialogProps) {
   const [open, setOpen] = useState(false);
   const [especialidadPopoverOpen, setEspecialidadPopoverOpen] = useState(false);
@@ -142,28 +144,39 @@ export function AddServiceDialog({
     setEspecialidadPopoverOpen(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Optimizar el manejo del envío del formulario
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (onSubmit) {
-      onSubmit(formData);
-    }
-    // Reset form and close dialog
-    setFormData({
-      nombre_servicio: "",
-      costo: 0,
-      duracion: 30,
-      descripcion: "",
-      especialidad: "",
-      tipo_paciente: "General",
-    });
+    
+    // Crear una copia del formulario para evitar mutaciones y problemas de referencia
+    const formDataCopy = JSON.parse(JSON.stringify(formData));
+    
+    // Cerrar el diálogo ANTES de enviar los datos para evitar congelamiento
     setOpen(false);
-  };
+    
+    // Esperar un momento antes de enviar para asegurar que el diálogo se cierre primero
+    requestAnimationFrame(() => {
+      if (onSubmit) {
+        onSubmit(formDataCopy);
+      }
+      
+      // Limpiar el formulario después de enviar
+      setFormData({
+        nombre_servicio: "",
+        costo: 0,
+        duracion: 30,
+        descripcion: "",
+        especialidad: "",
+        tipo_paciente: "General",
+      });
+    });
+  }, [formData, onSubmit]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={buttonVariant} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white">
-          <Plus className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} aria-hidden="true" />
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
           {buttonText}
         </Button>
       </DialogTrigger>

@@ -2,28 +2,13 @@
 
 import { useState } from "react";
 import { Row } from "@tanstack/react-table";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Edit, Ellipsis, Copy, Trash } from "lucide-react";
 import { Servicio } from "@/lib/database";
-import { createServicio } from "@/lib/serviciosService";
 import { EditServiceDialog } from "@/components/EditServiceDialog";
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui";
-import { CircleAlert, Ellipsis } from "lucide-react";
+import { useServicios } from "@/contexts/ServiciosContext";
 
 interface RowActionsProps {
   row: Row<Servicio>;
@@ -34,6 +19,8 @@ interface RowActionsProps {
 export default function RowActions({ row, onServicioUpdated, onServicioDeleted }: RowActionsProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  const { createService } = useServicios();
   
   const handleDuplicate = async () => {
     const originalService = row.original;
@@ -46,8 +33,9 @@ export default function RowActions({ row, onServicioUpdated, onServicioDeleted }
     };
     
     try {
-      await createServicio(duplicatedService);
-      // Trigger refresh through the update callback
+      await createService(duplicatedService);
+      
+      // Actualizar la vista después de duplicar
       onServicioUpdated(row.original);
     } catch (error) {
       console.error("Error duplicating service:", error);
@@ -63,84 +51,70 @@ export default function RowActions({ row, onServicioUpdated, onServicioDeleted }
       setDeleteDialogOpen(false);
     }
   };
-
+  
   return (
-    <>
+    <div className="relative">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <div className="flex justify-end">
-            <Button size="icon" variant="ghost" className="shadow-none" aria-label="Edit item">
-              <Ellipsis size={16} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+          >
+            <Ellipsis className="h-4 w-4" />
+            <span className="sr-only">Abrir menú</span>
+          </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-              <span>Editar</span>
-              <DropdownMenuShortcut>⌘E</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDuplicate}>
-              <span>Duplicar</span>
-              <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => {
-              // Ver detalles
-              console.log("Ver detalles", row.original);
-            }}>
-              <span>Ver detalles</span>
-              <DropdownMenuShortcut>⌘V</DropdownMenuShortcut>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
+        <DropdownMenuContent align="end" className="w-[160px]">
+          <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+            <Edit className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDuplicate}>
+            <Copy className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Duplicar
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
             onClick={() => setDeleteDialogOpen(true)}
+            className="text-red-600"
           >
-            <span>Eliminar</span>
-            <DropdownMenuShortcut>⌘⌫</DropdownMenuShortcut>
+            <Trash className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Eliminar
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       
-      {/* Edit Service Dialog */}
+      {/* Edit Dialog */}
       <EditServiceDialog
         service={row.original}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        onSubmit={onServicioUpdated}
+        onSubmit={async (updatedService) => {
+          await onServicioUpdated(updatedService);
+        }}
       />
-
+      
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
-          <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
-            <div
-              className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
-              aria-hidden="true"
-            >
-              <CircleAlert className="opacity-80" size={16} strokeWidth={2} />
-            </div>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. Eliminará permanentemente el servicio &quot;{row.original.nombre_servicio}&quot;.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-          </div>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Está seguro de eliminar el servicio <span className="font-semibold">{row.original.nombre_servicio}</span>?
+              <br />
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
               Eliminar
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 } 

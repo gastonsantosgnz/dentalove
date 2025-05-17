@@ -83,16 +83,10 @@ import {
   Clock,
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { AddServiceDialog } from "@/components/AddServiceDialog";
 import { EditServiceDialog } from "@/components/EditServiceDialog";
 import { Servicio } from "@/lib/database";
-import { 
-  getServicios, 
-  createServicio, 
-  updateServicio, 
-  deleteServicio as deleteSupabaseServicio 
-} from "@/lib/serviciosService";
+import { useServicios } from "@/contexts/ServiciosContext";
 
 // Import the new components
 import { getColumns } from "@/components/servicios/ServicesColumns";
@@ -147,8 +141,9 @@ export default function ServicesTable() {
     pageSize: 10,
   });
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Usar el contexto de servicios en lugar de estado local
+  const { servicios: data, isLoading, updateService, deleteService, createService } = useServicios();
 
   const [sorting, setSorting] = useState<SortingState>([
     {
@@ -156,52 +151,39 @@ export default function ServicesTable() {
       desc: false,
     },
   ]);
-
-  const [data, setData] = useState<Item[]>([]);
   
-  // Load services from Supabase - memoize this function to prevent recreating it on every render
-  const loadServicios = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const servicios = await getServicios();
-      setData(servicios);
-    } catch (error) {
-      console.error("Error loading services:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-  
-  // Pre-declare these functions so they can be referenced in the columns definition
+  // Definir manejadores directamente con las funciones del contexto
   const handleServiceUpdated = useCallback(async (servicio: Servicio) => {
     try {
-      await updateServicio(servicio.id, servicio);
-      // Refresh data after update in a controlled way
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1);
-      }, 100);
+      await updateService(servicio.id, servicio);
       return true;
     } catch (error) {
       console.error('Error updating service:', error);
       return false;
     }
-  }, []);
+  }, [updateService]);
 
   const handleServiceDeleted = useCallback(async (id: string) => {
     try {
-      await deleteSupabaseServicio(id);
-      // Refresh data after deletion in a controlled way
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1);
-      }, 100);
+      await deleteService(id);
       return true;
     } catch (error) {
       console.error('Error deleting service:', error);
       return false;
     }
-  }, []);
+  }, [deleteService]);
+
+  const handleServiceAdded = useCallback(async (servicio: Servicio) => {
+    try {
+      await createService(servicio);
+      return true;
+    } catch (error) {
+      console.error('Error adding service:', error);
+      return false;
+    }
+  }, [createService]);
   
-  // Memoize columns to prevent unnecessary re-creation
+  // Memoize columns para evitar recreaciones innecesarias
   const columns = useMemo(
     () => getColumns({
       handleServiceUpdated,
@@ -209,24 +191,6 @@ export default function ServicesTable() {
     }), 
     [handleServiceUpdated, handleServiceDeleted]
   );
-  
-  // Use useEffect to load data when needed, with proper cleanup
-  useEffect(() => {
-    let isMounted = true;
-    
-    const fetchData = async () => {
-      if (isMounted) {
-        await loadServicios();
-      }
-    };
-    
-    fetchData();
-    
-    // Cleanup function to prevent memory leaks and updates on unmounted component
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshKey, loadServicios]);
 
   // Memoize the table instance to prevent recreation on each render
   const table = useReactTable({
@@ -261,20 +225,15 @@ export default function ServicesTable() {
     try {
       // Delete each selected service from Supabase
       for (const id of selectedRowIds) {
-        await deleteSupabaseServicio(id);
+        await deleteService(id);
       }
-      
-      // Refresh data after deletions in a controlled way
-      setTimeout(() => {
-        setRefreshKey(prev => prev + 1);
-      }, 100);
       
       // Reset selection only if we have a table instance
       table.resetRowSelection();
     } catch (error) {
       console.error("Error deleting services:", error);
     }
-  }, [table]);
+  }, [table, deleteService]);
 
   return (
     <div className="space-y-4 max-w-[1000px]">
@@ -293,15 +252,10 @@ export default function ServicesTable() {
           
           {/* Add service button */}
           <AddServiceDialog
+            onOpenChange={setOpen => {}}
             onSubmit={async (serviceData) => {
               try {
-                // Save to Supabase
-                await createServicio(serviceData);
-                
-                // Refresh data in a controlled way
-                setTimeout(() => {
-                  setRefreshKey(prev => prev + 1);
-                }, 100);
+                await createService(serviceData);
               } catch (error) {
                 console.error("Error creating service:", error);
               }

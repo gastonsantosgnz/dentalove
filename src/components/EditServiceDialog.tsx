@@ -8,14 +8,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, ChevronsUpDown, ChevronDown } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Servicio } from "@/lib/database";
 import { getServicios } from "@/lib/serviciosService";
 import {
@@ -39,77 +37,70 @@ export function EditServiceDialog({
   onOpenChange,
   onSubmit,
 }: EditServiceDialogProps) {
-  const [especialidadPopoverOpen, setEspecialidadPopoverOpen] = useState(false);
-  const [tipoPacientePopoverOpen, setTipoPacientePopoverOpen] = useState(false);
-  const [especialidades, setEspecialidades] = useState<string[]>([]);
+  // Estado local
   const [formData, setFormData] = useState<Servicio>(service);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const tipoPacienteRef = useRef<HTMLDivElement>(null);
+  const [especialidades, setEspecialidades] = useState<string[]>([]);
+  
+  // Manejo simplificado del popup de especialidad usando Radix UI Select
+  const handleEspecialidadChange = useCallback((value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      especialidad: value
+    }));
+  }, []);
+  
+  // Manejo simplificado del tipo de paciente usando Radix UI Select
+  const handleTipoChange = useCallback((value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tipo_paciente: value
+    }));
+  }, []);
 
-  // Effect to close the especialidad menu when clicking outside
+  // Cargar especialidades una sola vez al abrir
   useEffect(() => {
-    if (!open) return; // Only add listeners when dialog is open
+    if (!open) return;
     
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setEspecialidadPopoverOpen(false);
+    let isMounted = true;
+    
+    // Función para cargar especialidades
+    const loadEspecialidades = async () => {
+      try {
+        const servicios = await getServicios();
+        if (!isMounted) return;
+        
+        // Extraer especialidades únicas
+        const uniqueEspecialidades = Array.from(
+          new Set(servicios.map(servicio => servicio.especialidad).filter(Boolean) as string[])
+        ).sort((a, b) => a.localeCompare(b));
+        
+        setEspecialidades(uniqueEspecialidades);
+      } catch (error) {
+        console.error("Error loading specialties:", error);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open]);
-
-  // Effect to close the tipo_paciente menu when clicking outside
-  useEffect(() => {
-    if (!open) return; // Only add listeners when dialog is open
     
-    const handleClickOutside = (event: MouseEvent) => {
-      if (tipoPacienteRef.current && !tipoPacienteRef.current.contains(event.target as Node)) {
-        setTipoPacientePopoverOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    loadEspecialidades();
+    
+    // Limpiar efecto
+    return () => { isMounted = false; };
   }, [open]);
 
-  // Load existing specialties
+  // Actualizar estado cuando cambia el servicio
   useEffect(() => {
     if (open) {
-      const loadEspecialidades = async () => {
-        try {
-          const servicios = await getServicios();
-          // Extract unique specialties
-          const uniqueEspecialidades = Array.from(
-            new Set(servicios.map(servicio => servicio.especialidad).filter(Boolean) as string[])
-          ).sort((a, b) => a.localeCompare(b));
-          setEspecialidades(uniqueEspecialidades);
-        } catch (error) {
-          console.error("Error loading specialties:", error);
-        }
-      };
-      
-      loadEspecialidades();
+      setFormData(service);
     }
-  }, [open]);
+  }, [service, open]);
 
-  // Update form data when service prop changes
-  useEffect(() => {
-    setFormData(service);
-  }, [service]);
-
-  const handleInputChange = (
+  // Manejar cambios en los inputs
+  const handleInputChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     
     if (name === "costo" || name === "duracion") {
-      // Ensure value is a positive number
+      // Asegurar que el valor sea un número positivo
       const numericValue = Math.max(0, Number(value));
       setFormData((prev) => ({
         ...prev,
@@ -121,15 +112,40 @@ export function EditServiceDialog({
         [name]: value,
       }));
     }
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Optimizar el manejo del envío del formulario
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (onSubmit) {
-      onSubmit(formData);
-    }
+    
+    // Crear una copia del formulario para evitar mutaciones y problemas de referencia
+    const formDataCopy = JSON.parse(JSON.stringify(formData));
+    
+    // Cerrar el diálogo ANTES de enviar los datos para evitar congelamiento
     onOpenChange(false);
-  };
+    
+    // Esperar un momento antes de enviar para asegurar que el diálogo se cierre primero
+    requestAnimationFrame(() => {
+      if (onSubmit) {
+        onSubmit(formDataCopy);
+      }
+    });
+  }, [formData, onSubmit, onOpenChange]);
+
+  // Crear opciones para el Select de especialidad
+  const especialidadOptions = [
+    ...especialidades.map(esp => ({
+      value: esp,
+      label: esp
+    })),
+    ...(
+      formData.especialidad && 
+      !especialidades.includes(formData.especialidad) && 
+      formData.especialidad.trim() !== '' ? 
+      [{ value: formData.especialidad, label: `${formData.especialidad} (nuevo)` }] : 
+      []
+    )
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -142,236 +158,137 @@ export function EditServiceDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 py-2">
-          <AnimatePresence>
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-4"
-            >
-              <motion.div 
-                className="space-y-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.1, duration: 0.3 }}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="nombre_servicio">Nombre del servicio *</Label>
+              <Input
+                id="nombre_servicio"
+                name="nombre_servicio"
+                placeholder="Limpieza dental"
+                value={formData.nombre_servicio || ''}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="costo">Costo (MXN) *</Label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    id="costo"
+                    name="costo"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="800"
+                    value={formData.costo || 0}
+                    onChange={handleInputChange}
+                    className="pl-7"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="duracion">Duración (minutos) *</Label>
+                <div className="relative">
+                  <Input
+                    id="duracion"
+                    name="duracion"
+                    type="number"
+                    min="5"
+                    step="5"
+                    placeholder="30"
+                    value={formData.duracion || 30}
+                    onChange={handleInputChange}
+                    required
+                    className="pr-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                    min
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tipo_paciente">Tipo de paciente *</Label>
+              <Select 
+                value={formData.tipo_paciente || "General"} 
+                onValueChange={handleTipoChange}
               >
-                <Label htmlFor="nombre_servicio">Nombre del servicio *</Label>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tipo de paciente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Adulto">Adulto</SelectItem>
+                  <SelectItem value="Pediátrico">Pediátrico</SelectItem>
+                  <SelectItem value="General">General</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="especialidad">Especialidad *</Label>
+              <div className="relative">
                 <Input
-                  id="nombre_servicio"
-                  name="nombre_servicio"
-                  placeholder="Limpieza dental"
-                  value={formData.nombre_servicio}
+                  id="especialidad"
+                  name="especialidad"
+                  placeholder="Escribe una especialidad"
+                  value={formData.especialidad || ""}
                   onChange={handleInputChange}
                   required
                 />
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.3 }}
-                className="grid grid-cols-1 gap-4 md:grid-cols-2"
-              >
-                <motion.div className="space-y-2">
-                  <Label htmlFor="costo">Costo (MXN) *</Label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-                      $
-                    </span>
-                    <Input
-                      id="costo"
-                      name="costo"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="800"
-                      value={formData.costo}
-                      onChange={handleInputChange}
-                      className="pl-7"
-                      required
-                    />
-                  </div>
-                </motion.div>
-                
-                <motion.div className="space-y-2">
-                  <Label htmlFor="duracion">Duración (minutos) *</Label>
-                  <div className="relative">
-                    <Input
-                      id="duracion"
-                      name="duracion"
-                      type="number"
-                      min="5"
-                      step="5"
-                      placeholder="30"
-                      value={formData.duracion}
-                      onChange={handleInputChange}
-                      required
-                      className="pr-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
-                      min
-                    </span>
-                  </div>
-                </motion.div>
-              </motion.div>
-
-              <motion.div 
-                className="space-y-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.28, duration: 0.3 }}
-              >
-                <Label htmlFor="tipo_paciente">Tipo de paciente *</Label>
-                <div className="relative" ref={tipoPacienteRef}>
-                  <button
-                    type="button"
-                    id="tipo_paciente"
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    onClick={() => setTipoPacientePopoverOpen(prev => !prev)}
-                  >
-                    {formData.tipo_paciente || "General"}
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </button>
-                  
-                  {tipoPacientePopoverOpen && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg">
-                      <div 
-                        className="py-1.5 px-2 hover:bg-slate-100 cursor-pointer"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, tipo_paciente: "Adulto" }));
-                          setTipoPacientePopoverOpen(false);
-                        }}
+              </div>
+              {especialidades.length > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Especialidades disponibles:
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {especialidades.map(esp => (
+                      <span 
+                        key={esp} 
+                        className="px-2 py-1 rounded-md bg-slate-100 text-slate-800 cursor-pointer hover:bg-slate-200"
+                        onClick={() => handleEspecialidadChange(esp)}
                       >
-                        Adulto
-                      </div>
-                      <div 
-                        className="py-1.5 px-2 hover:bg-slate-100 cursor-pointer"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, tipo_paciente: "Pediátrico" }));
-                          setTipoPacientePopoverOpen(false);
-                        }}
-                      >
-                        Pediátrico
-                      </div>
-                      <div 
-                        className="py-1.5 px-2 hover:bg-slate-100 cursor-pointer"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, tipo_paciente: "General" }));
-                          setTipoPacientePopoverOpen(false);
-                        }}
-                      >
-                        General
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                className="space-y-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.25, duration: 0.3 }}
-              >
-                <Label htmlFor="especialidad">Especialidad *</Label>
-                <div className="relative">
-                  <div className="relative w-full" ref={dropdownRef}>
-                    <Input
-                      id="especialidad"
-                      name="especialidad"
-                      placeholder="Selecciona o escribe una especialidad"
-                      value={formData.especialidad || ""}
-                      onChange={handleInputChange}
-                      className="pr-10"
-                      required
-                      onClick={() => setEspecialidadPopoverOpen(!especialidadPopoverOpen)}
-                    />
-                    <div 
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-                      onClick={() => setEspecialidadPopoverOpen(!especialidadPopoverOpen)}
-                    >
-                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-                    </div>
-
-                    {especialidadPopoverOpen && especialidades.length > 0 && (
-                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                        {/* Existing options */}
-                        {especialidades.map((esp) => (
-                          <div
-                            key={esp}
-                            className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-gray-100 ${
-                              formData.especialidad === esp ? 'bg-gray-100' : ''
-                            }`}
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                especialidad: esp
-                              }));
-                              setEspecialidadPopoverOpen(false);
-                            }}
-                          >
-                            <span className="block truncate">{esp}</span>
-                            {formData.especialidad === esp && (
-                              <span className="absolute inset-y-0 right-0 flex items-center pr-4">
-                                <Check className="h-4 w-4 text-emerald-600" />
-                              </span>
-                            )}
-                          </div>
-                        ))}
-
-                        {/* Separator */}
-                        <div className="border-t border-gray-200 my-1"></div>
-
-                        {/* Add new */}
-                        <div
-                          className="relative cursor-pointer select-none py-2 pl-3 pr-9 text-blue-600 hover:bg-blue-50 flex items-center"
-                          onClick={() => {
-                            // If there's text written that doesn't match any existing specialty, use it as a new specialty
-                            if (formData.especialidad && typeof formData.especialidad === 'string' && !especialidades.includes(formData.especialidad)) {
-                              const newEspecialidad = formData.especialidad;
-                              setEspecialidades(prev => 
-                                [...prev, newEspecialidad].sort((a, b) => a.localeCompare(b))
-                              );
-                              setEspecialidadPopoverOpen(false);
-                            }
-                          }}
-                        >
-                          <span className="block truncate">
-                            {formData.especialidad && !especialidades.includes(formData.especialidad)
-                              ? `Agregar "${formData.especialidad}"`
-                              : "Escribe una nueva especialidad"}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                        {esp}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </motion.div>
-              
-              <motion.div 
-                className="space-y-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3, duration: 0.3 }}
-              >
-                <Label htmlFor="descripcion">Descripción</Label>
-                <Textarea
-                  id="descripcion"
-                  name="descripcion"
-                  placeholder="Breve descripción del servicio dental..."
-                  value={formData.descripcion || ""}
-                  onChange={handleInputChange}
-                  rows={3}
-                />
-              </motion.div>
-            </motion.div>
-          </AnimatePresence>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="descripcion">Descripción</Label>
+              <Textarea
+                id="descripcion"
+                name="descripcion"
+                placeholder="Breve descripción del servicio dental..."
+                value={formData.descripcion || ""}
+                onChange={handleInputChange}
+                rows={3}
+              />
+            </div>
+          </div>
           
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
-            <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white">Guardar cambios</Button>
+            <Button 
+              type="submit" 
+              className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+            >
+              Guardar cambios
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,69 +1,139 @@
 "use client";
 
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as React from "react";
-
 import { cn } from "@/lib/utils";
-import { Cross2Icon } from "@radix-ui/react-icons";
+import { X } from "lucide-react";
 
-const Dialog = DialogPrimitive.Root;
+// Interfaz simplificada para DialogProps
+interface DialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
+}
 
-const DialogTrigger = DialogPrimitive.Trigger;
+// Dialog container simplificado
+const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+  // Controlar visibilidad directamente
+  React.useEffect(() => {
+    if (open) {
+      // Evitar scroll del body cuando el dialog está abierto
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    
+    // Cleanup al desmontar
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
-const DialogPortal = DialogPrimitive.Portal;
+  // No renderizar nada si no está abierto
+  if (!open) return null;
+  
+  return <>{children}</>;
+};
 
-const DialogClose = DialogPrimitive.Close;
+// Trigger simplificado
+const DialogTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { onOpenChange?: (open: boolean) => void }
+>(({ onClick, onOpenChange, ...props }, ref) => {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (onClick) onClick(e);
+    if (onOpenChange) onOpenChange(true);
+  };
+  
+  return <button type="button" onClick={handleClick} ref={ref} {...props} />;
+});
+DialogTrigger.displayName = "DialogTrigger";
 
+// No usamos overlays ni portales - todo se renderiza directamente en el lugar
 const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
+  <div
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[101] bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-[101] bg-black/50",
       className,
     )}
     {...props}
   />
 ));
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
+DialogOverlay.displayName = "DialogOverlay";
 
+// Contenido simplificado que se renderiza directamente
 const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-1/2 top-1/2 z-[101] grid max-h-[calc(100%-4rem)] w-full -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto border bg-background p-6 shadow-lg shadow-black/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:max-w-[400px] sm:rounded-xl",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="group absolute right-3 top-3 flex size-7 items-center justify-center rounded-lg outline-offset-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none">
-        <Cross2Icon
-          width={16}
-          height={16}
-          strokeWidth={2}
-          className="opacity-60 transition-opacity group-hover:opacity-100"
-        />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
-DialogContent.displayName = DialogPrimitive.Content.displayName;
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { onOpenChange?: (open: boolean) => void }
+>(({ className, children, onOpenChange, ...props }, ref) => {
+  // Manejar clic fuera para cerrar
+  const handleBackdropClick = React.useCallback((e: React.MouseEvent) => {
+    // Solo cerrar si se hace clic directamente en el backdrop
+    if (e.target === e.currentTarget && onOpenChange) {
+      onOpenChange(false);
+    }
+  }, [onOpenChange]);
+  
+  // Manejar tecla Escape
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && onOpenChange) {
+        onOpenChange(false);
+      }
+    };
+    
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onOpenChange]);
+  
+  return (
+    <div className="fixed inset-0 z-[100] overflow-auto" onClick={handleBackdropClick}>
+      <DialogOverlay />
+      <div
+        ref={ref}
+        className={cn(
+          "fixed left-1/2 top-1/2 z-[101] max-h-[90vh] w-[90vw] max-w-[450px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md bg-white p-6 shadow-lg sm:w-full",
+          className,
+        )}
+        {...props}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+        {onOpenChange && (
+          <button
+            className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+DialogContent.displayName = "DialogContent";
 
-const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+// Componentes auxiliares simplificados
+const DialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)}
+    {...props}
+  />
 );
 DialogHeader.displayName = "DialogHeader";
 
-const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+const DialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3", className)}
     {...props}
@@ -72,38 +142,35 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 DialogFooter.displayName = "DialogFooter";
 
 const DialogTitle = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+  HTMLHeadingElement,
+  React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title
+  <h2
     ref={ref}
     className={cn("text-lg font-semibold tracking-tight", className)}
     {...props}
   />
 ));
-DialogTitle.displayName = DialogPrimitive.Title.displayName;
+DialogTitle.displayName = "DialogTitle";
 
 const DialogDescription = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Description>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Description
+  <p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm text-gray-500", className)}
     {...props}
   />
 ));
-DialogDescription.displayName = DialogPrimitive.Description.displayName;
+DialogDescription.displayName = "DialogDescription";
 
 export {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
   DialogTrigger,
 }; 

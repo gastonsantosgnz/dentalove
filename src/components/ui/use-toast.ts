@@ -130,8 +130,10 @@ let memoryState: State = { toasts: [] }
 
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action)
+  // Crear una copia del estado para evitar referencias circulares
+  const stateCopy = JSON.parse(JSON.stringify(memoryState))
   listeners.forEach((listener) => {
-    listener(memoryState)
+    listener(stateCopy)
   })
 }
 
@@ -170,14 +172,22 @@ function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
-    listeners.push(setState)
+    // Crear una función de actualización estable
+    const updateState = (newState: State) => {
+      setState(newState)
+    }
+    
+    // Agregar el listener sólo una vez al montar
+    listeners.push(updateState)
+    
+    // Limpiar el listener al desmontar
     return () => {
-      const index = listeners.indexOf(setState)
+      const index = listeners.indexOf(updateState)
       if (index > -1) {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, []) // Dependencia vacía para que solo se ejecute al montar/desmontar
 
   return {
     ...state,

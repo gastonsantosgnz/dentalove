@@ -73,7 +73,8 @@ export function DeleteDoctorAlertDialog({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {/* Render the trigger directly with onClick to open dialog */}
+      {trigger}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>

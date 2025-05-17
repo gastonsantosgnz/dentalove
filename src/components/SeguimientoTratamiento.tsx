@@ -500,22 +500,20 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
                                     <>
                                       {/* Marcar como completado */}
                                       <Dialog>
-                                        <DialogTrigger asChild>
-                                          <Button 
-                                            size="sm" 
-                                            variant="outline"
-                                            className="flex items-center gap-1 text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 hover:bg-green-50"
-                                            onClick={() => {
-                                              setServicioActual(servicio);
-                                              setFecha(new Date());
-                                              setMonto(detalle ? detalle.costo : '0');
-                                              setNotas('');
-                                            }}
-                                          >
-                                            <CheckCircle2 size={14} />
-                                            <span>Completar</span>
-                                          </Button>
-                                        </DialogTrigger>
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline"
+                                          className="flex items-center gap-1 text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 hover:bg-green-50"
+                                          onClick={() => {
+                                            setServicioActual(servicio);
+                                            setFecha(new Date());
+                                            setMonto(detalle ? detalle.costo : '0');
+                                            setNotas('');
+                                          }}
+                                        >
+                                          <CheckCircle2 size={14} />
+                                          <span>Completar</span>
+                                        </Button>
                                         <DialogContent>
                                           <DialogHeader>
                                             <DialogTitle>Completar Servicio</DialogTitle>
@@ -528,7 +526,7 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
                                             <div className="grid gap-2">
                                               <Label htmlFor="fecha">Fecha de realización</Label>
                                               <Popover>
-                                                <PopoverTrigger asChild>
+                                                <PopoverTrigger>
                                                   <Button
                                                     variant="outline"
                                                     className={cn(
@@ -599,20 +597,18 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
                                       
                                       {/* Marcar como cancelado */}
                                       <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button 
-                                            size="sm" 
-                                            variant="outline"
-                                            className="flex items-center gap-1 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
-                                            onClick={() => {
-                                              setServicioActual(servicio);
-                                              setNotas('');
-                                            }}
-                                          >
-                                            <XCircle size={14} />
-                                            <span>Cancelar</span>
-                                          </Button>
-                                        </AlertDialogTrigger>
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline"
+                                          className="flex items-center gap-1 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
+                                          onClick={() => {
+                                            setServicioActual(servicio);
+                                            setNotas('');
+                                          }}
+                                        >
+                                          <XCircle size={14} />
+                                          <span>Cancelar</span>
+                                        </Button>
                                         <AlertDialogContent>
                                           <AlertDialogHeader>
                                             <AlertDialogTitle>Cancelar Servicio</AlertDialogTitle>
@@ -650,21 +646,19 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
                                   
                                   {/* Registrar pago (disponible para cualquier estado) */}
                                   <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline"
-                                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300 hover:bg-blue-50"
-                                        onClick={() => {
-                                          setServicioActual(servicio);
-                                          setFecha(new Date());
-                                          setMonto(servicio.monto_pagado ? servicio.monto_pagado.toString() : (detalle ? detalle.costo : '0'));
-                                        }}
-                                      >
-                                        <DollarSign size={14} />
-                                        <span>Pago</span>
-                                      </Button>
-                                    </DialogTrigger>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setServicioActual(servicio);
+                                        setFecha(new Date());
+                                        setMonto(servicio.monto_pagado ? servicio.monto_pagado.toString() : (detalle ? detalle.costo : '0'));
+                                      }}
+                                    >
+                                      <DollarSign size={14} />
+                                      <span>Pago</span>
+                                    </Button>
                                     <DialogContent>
                                       <DialogHeader>
                                         <DialogTitle>Registrar Pago</DialogTitle>
@@ -677,7 +671,7 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
                                         <div className="grid gap-2">
                                           <Label htmlFor="fechaPago">Fecha de pago</Label>
                                           <Popover>
-                                            <PopoverTrigger asChild>
+                                            <PopoverTrigger>
                                               <Button
                                                 variant="outline"
                                                 className={cn(

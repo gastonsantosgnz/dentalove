@@ -17,37 +17,6 @@ export function DebugMemory() {
   const [orphanedListeners, setOrphanedListeners] = useState<ListenerInfo[]>([]);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Función para forzar la recolección de basura
-  const forceGarbageCollection = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      for (let i = 0; i < 20; i++) {
-        // Forzar GC indirectamente creando y eliminando objetos grandes
-        const arr = new Array(1000000).fill(Math.random());
-        arr.length = 0;
-      }
-      setTimeout(() => updateStats(), 500);
-    }
-  }, []);
-
-  // Forzar refresco de estadísticas
-  const updateStats = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      // Obtener conteo de event listeners desde el método global
-      // @ts-ignore
-      const count = window.__eventListenerCount || 0;
-      setListeners(count);
-      
-      // Intentar obtener estadísticas de memoria si están disponibles
-      if (performance && 'memory' in performance) {
-        // @ts-ignore
-        setMemoryUsage(performance.memory);
-      }
-      
-      // Buscar listeners huérfanos
-      findOrphanedListeners();
-    }
-  }, []);
-
   // Función para encontrar listeners huérfanos
   const findOrphanedListeners = useCallback(() => {
     // Esta es una función simplificada que podría detectar algunos huérfanos
@@ -67,6 +36,37 @@ export function DebugMemory() {
     
     setOrphanedListeners(orphaned);
   }, []);
+
+  // Forzar refresco de estadísticas
+  const updateStats = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      // Obtener conteo de event listeners desde el método global
+      // @ts-ignore
+      const count = window.__eventListenerCount || 0;
+      setListeners(count);
+      
+      // Intentar obtener estadísticas de memoria si están disponibles
+      if (performance && 'memory' in performance) {
+        // @ts-ignore
+        setMemoryUsage(performance.memory);
+      }
+      
+      // Buscar listeners huérfanos
+      findOrphanedListeners();
+    }
+  }, [findOrphanedListeners]);
+
+  // Función para forzar la recolección de basura
+  const forceGarbageCollection = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      for (let i = 0; i < 20; i++) {
+        // Forzar GC indirectamente creando y eliminando objetos grandes
+        const arr = new Array(1000000).fill(Math.random());
+        arr.length = 0;
+      }
+      setTimeout(() => updateStats(), 500);
+    }
+  }, [updateStats]);
 
   // Configurar el mecanismo de detección de memory leaks
   useEffect(() => {

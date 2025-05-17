@@ -174,12 +174,11 @@ export function AddServiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          {buttonText}
-        </Button>
-      </DialogTrigger>
+      <Button onClick={() => setOpen(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        {buttonText}
+      </Button>
+      
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader className="mb-2">
           <DialogTitle>Agregar nuevo servicio</DialogTitle>

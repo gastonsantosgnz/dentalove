@@ -77,7 +77,7 @@ import { AddDoctorDialog } from "./AddDoctorDialog";
 import { Doctor, createDoctor, deleteDoctor, getDoctores, updateDoctor } from "@/lib/doctoresService";
 import { DoctorRowActions } from "./DoctorRowActions";
 import { DeleteDoctorAlertDialog } from "./DeleteDoctorAlertDialog";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -85,7 +85,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogPortal,
 } from "@/components/ui/dialog";
 
 // Custom filter function for multi-column searching

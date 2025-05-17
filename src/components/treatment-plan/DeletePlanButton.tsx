@@ -50,12 +50,10 @@ export function DeletePlanButton({ planId, onDeleted }: DeletePlanButtonProps) {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="destructive" disabled={isDeleting}>
-          <Trash2 className="h-4 w-4 mr-2" />
-          {isDeleting ? "Eliminando..." : "Eliminar plan"}
-        </Button>
-      </AlertDialogTrigger>
+      <Button variant="destructive" disabled={isDeleting} onClick={() => {}}>
+        <Trash2 className="h-4 w-4 mr-2" />
+        {isDeleting ? "Eliminando..." : "Eliminar plan"}
+      </Button>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>

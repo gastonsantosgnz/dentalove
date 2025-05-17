@@ -27,14 +27,23 @@ if (typeof window !== 'undefined') {
   const originalAddEventListener = EventTarget.prototype.addEventListener;
   const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
   
-  EventTarget.prototype.addEventListener = function(...args: any[]) {
+  // Usar tipado correcto para los argumentos
+  EventTarget.prototype.addEventListener = function(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions
+  ) {
     window.__eventListenerCount++;
-    return originalAddEventListener.apply(this, args);
+    return originalAddEventListener.call(this, type, listener, options);
   };
   
-  EventTarget.prototype.removeEventListener = function(...args: any[]) {
+  EventTarget.prototype.removeEventListener = function(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions
+  ) {
     window.__eventListenerCount--;
-    return originalRemoveEventListener.apply(this, args);
+    return originalRemoveEventListener.call(this, type, listener, options);
   };
   
   // Código de limpieza básico que se ejecuta al cerrar/recargar la página

@@ -137,19 +137,27 @@ export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
     setDisplayDate('');
   };
 
+  // Manejador para abrir el diálogo
+  const handleOpenDialog = () => {
+    setOpen(true);
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="ml-auto bg-slate-900 text-white hover:bg-slate-800 hover:text-white">
-          <Plus
-            className="-ms-1 me-2 opacity-60"
-            size={16}
-            strokeWidth={2}
-            aria-hidden="true"
-          />
-          Nuevo Paciente
-        </Button>
-      </DialogTrigger>
+      {/* Reemplazar el DialogTrigger con un botón normal que llama a setOpen(true) */}
+      <Button 
+        className="ml-auto bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+        onClick={handleOpenDialog}
+      >
+        <Plus
+          className="-ms-1 me-2 opacity-60"
+          size={16}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+        Nuevo Paciente
+      </Button>
+      
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

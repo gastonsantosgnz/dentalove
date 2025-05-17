@@ -142,32 +142,14 @@ export function AddDoctorDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {shouldRenderTrigger && (
-        <DialogTrigger asChild>
+        <Button onClick={() => handleOpenChange(true)}>
+          <Plus className="h-4 w-4 mr-2" />
           {trigger || (
-            <Button ref={triggerRef}>
-              <Plus className="-ms-1 me-2 h-4 w-4" />
-              Nuevo Doctor
-            </Button>
+            "Nuevo Doctor"
           )}
-        </DialogTrigger>
+        </Button>
       )}
-      <DialogContent
-        onPointerDownOutside={(e) => {
-          // Prevenir cierre accidental solo durante la carga
-          if (isLoading) e.preventDefault();
-        }}
-        onInteractOutside={(e) => {
-          // Prevenir interacciones externas solo durante la carga
-          if (isLoading) e.preventDefault();
-        }}
-        onEscapeKeyDown={(e) => {
-          // Solo permitir escape si no estamos en carga
-          if (isLoading) {
-            e.preventDefault();
-          }
-        }}
-        className="max-w-md"
-      >
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Doctor" : "Agregar Doctor"}</DialogTitle>
           <DialogDescription>

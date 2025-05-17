@@ -497,20 +497,22 @@ export default function PacientesTable() {
           {/* Delete button */}
           {table.getSelectedRowModel().rows.length > 0 && (
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button className="ml-auto" variant="outline">
-                  <Trash
-                    className="-ms-1 me-2 opacity-60"
-                    size={16}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
-                  Eliminar
-                  <span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
-                    {table.getSelectedRowModel().rows.length}
-                  </span>
-                </Button>
-              </AlertDialogTrigger>
+              <Button 
+                className="ml-auto" 
+                variant="outline" 
+                onClick={() => {}}
+              >
+                <Trash
+                  className="-ms-1 me-2 opacity-60"
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+                Eliminar
+                <span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
+                  {table.getSelectedRowModel().rows.length}
+                </span>
+              </Button>
               <AlertDialogContent>
                 <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
                   <div

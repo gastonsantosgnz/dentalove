@@ -8,7 +8,7 @@ import {
 
 export const navlinks = [
   {
-    href: "/",
+    href: "/dashboard",
     label: "Inicio",
     icon: IconBolt,
   },

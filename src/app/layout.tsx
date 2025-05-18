@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { twMerge } from "tailwind-merge";
-import ClientLayout from "@/components/ClientLayout";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Import cleanup registry for initialization
 import "@/lib/cleanupRegistry";
@@ -69,10 +69,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={twMerge(inter.className, "flex antialiased h-screen overflow-hidden bg-gray-100")}>
-        <ClientLayout>
+      <body className={twMerge(inter.className, "antialiased")}>
+        <AuthProvider>
           {children}
-        </ClientLayout>
+        </AuthProvider>
       </body>
     </html>
   );

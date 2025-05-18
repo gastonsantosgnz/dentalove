@@ -65,8 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!hasRedirected && newSession) {
       const currentPath = window.location.pathname;
       
-      // Solo redirigir desde login o página raíz
-      if (currentPath === '/login' || currentPath === '/') {
+      // Solo redirigir desde la página de login
+      if (currentPath === '/login') {
         setHasRedirected(true);
         
         // Usar función dedicada para redirección

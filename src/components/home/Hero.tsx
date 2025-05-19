@@ -36,17 +36,6 @@ export function Hero() {
   
   return (
     <div className="px-4 bg-white relative h-[900px] md:h-[1000px] lg:h-[1100px]">
-      <div className="absolute inset-0 transition duration-300 [mask-image:linear-gradient(white,transparent)] group-hover:opacity-50">
-        {/* Patrón de fondo simplificado - no tenemos el componente GridPattern */}
-        <div 
-          className="absolute inset-x-0 inset-y-[-30%] h-[160%] w-full skew-y-[-5deg] bg-grid-slate-100 opacity-10"
-          style={{
-            backgroundSize: '120px 120px',
-            backgroundPosition: 'center',
-          }}
-        />
-      </div>
-      
       <div className="relative z-10 max-w-7xl mx-auto pt-28 md:pt-32">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -55,7 +44,7 @@ export function Hero() {
           className="text-center"
         >
           <h1 className="font-semibold text-4xl sm:text-7xl text-center max-w-5xl mx-auto text-zinc-800 leading-tight tracking-tight">
-            Gestione su <span className="text-blue-600">clínica dental</span> con total eficiencia
+            Gestione su <span className="text-[#0c7d74]">clínica dental</span> con total eficiencia
           </h1>
           <p className="mx-auto mt-6 max-w-3xl text-xl tracking-tight text-zinc-600 text-center leading-normal">
             Dentalove es una plataforma integral para gestionar planes dentales y administrar 
@@ -65,7 +54,7 @@ export function Hero() {
           <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center items-center mt-12">
             {user ? (
               <Link href="/dashboard">
-                <Button size="lg" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-6 px-8">
+                <Button size="lg" className="gap-2 bg-[#0c7d74] hover:bg-[#0a6b63] text-white rounded-2xl py-6 px-8">
                   Ir al Dashboard
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -79,7 +68,7 @@ export function Hero() {
                 </Link>
                 
                 <Link href="/register">
-                  <Button size="lg" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-6 px-8">
+                  <Button size="lg" className="gap-2 bg-[#0c7d74] hover:bg-[#0a6b63] text-white rounded-2xl py-6 px-8">
                     Comenzar ahora
                   </Button>
                 </Link>

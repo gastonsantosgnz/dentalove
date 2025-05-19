@@ -5,7 +5,7 @@ import rehypePrism from "@mapbox/rehype-prism";
 
 const nextConfig = {
   images: {
-    domains: ["images.unsplash.com", "res.cloudinary.com", "jzlagehrckqnxufcmbjg.supabase.co"],
+    domains: ["images.unsplash.com", "res.cloudinary.com", "jzlagehrckqnxufcmbjg.supabase.co", "randomuser.me"],
   },
 };
 

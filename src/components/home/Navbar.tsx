@@ -9,18 +9,16 @@ export function Navbar() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const navItems = [
-    { name: "Inicio", link: "/" },
     { name: "Características", link: "#features" },
     { name: "Testimonios", link: "#testimonials" },
     { name: "Precios", link: "#pricing" },
-    { name: "Contacto", link: "#contact" },
   ];
   
   return (
     <header className="sticky top-4 z-50 mx-auto max-w-7xl px-4 py-2">
       <div className="flex flex-row space-x-4 items-center justify-between antialiased rounded-2xl bg-white border border-slate-200 shadow-sm px-6 py-3">
         <Link href="/" className="font-bold text-2xl text-slate-900 flex items-center">
-          <span className="text-blue-600">Dental</span>ove
+          <span className="text-[#0c7d74]">Dental</span>ove
         </Link>
         
         <nav className="hidden md:flex items-center space-x-1">
@@ -40,18 +38,15 @@ export function Navbar() {
         <div className="flex items-center space-x-4">
           {user ? (
             <Link href="/dashboard">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
+              <Button className="bg-[#0c7d74] hover:bg-[#0a6b63] text-white rounded-xl">
                 Dashboard
               </Button>
             </Link>
           ) : (
             <>
-              <Link href="/login" className="text-slate-600 hover:text-slate-900 text-sm hidden sm:inline-block">
-                Iniciar sesión
-              </Link>
-              <Link href="/register">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
-                  Registrarse
+              <Link href="/login">
+                <Button className="bg-[#0c7d74] hover:bg-[#0a6b63] text-white rounded-xl">
+                  Entrar
                 </Button>
               </Link>
             </>

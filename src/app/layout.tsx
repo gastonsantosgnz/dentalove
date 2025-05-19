@@ -16,6 +16,16 @@ export const metadata: Metadata = {
   title: "Dentalove - Planes Dentales",
   description:
     "Dentalove ofrece planes dentales personalizados para el cuidado de tu salud bucal. Consulta y administra a tus pacientes de manera eficiente.",
+  icons: {
+    icon: [
+      { url: '/dentalove-favicon.ico' },
+      { url: '/dentalove-favicon.ico', sizes: '16x16', type: 'image/x-icon' },
+      { url: '/dentalove-favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+    ],
+    apple: [
+      { url: '/dentalove-favicon.ico', sizes: '180x180', type: 'image/x-icon' },
+    ],
+  },
 };
 
 // Establecer un mecanismo básico para detectar memory leaks

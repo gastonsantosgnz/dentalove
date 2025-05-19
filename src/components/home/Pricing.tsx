@@ -98,7 +98,7 @@ export function Pricing() {
             <motion.span
               animate={{ x: -10 }}
               transition={{ duration: 0.5 }}
-              className="absolute bottom-0 h-px inset-x-0 bg-gradient-to-r from-blue-500 to-blue-600 blur-[1px] z-50 mx-auto"
+              className="absolute bottom-0 h-px inset-x-0 bg-gradient-to-r from-[#0c7d74] to-[#0a6b63] blur-[1px] z-50 mx-auto"
             ></motion.span>
           )}
         </button>
@@ -114,7 +114,7 @@ export function Pricing() {
             <motion.span
               animate={{ x: 10 }}
               transition={{ duration: 0.5 }}
-              className="absolute bottom-0 h-px inset-x-0 bg-gradient-to-r from-blue-500 to-blue-600 blur-[1px] z-50 mx-auto"
+              className="absolute bottom-0 h-px inset-x-0 bg-gradient-to-r from-[#0c7d74] to-[#0a6b63] blur-[1px] z-50 mx-auto"
             ></motion.span>
           )}
         </button>
@@ -145,13 +145,13 @@ const PricingCard = (props: Package) => {
     <div
       className={cn(
         "bg-white rounded-2xl px-8 py-12 relative border shadow-sm",
-        highlight && "bg-blue-600 border-blue-600 shadow-lg",
+        highlight && "bg-[#0c7d74] border-[#0c7d74] shadow-lg",
         className
       )}
     >
       {highlight && (
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">MÁS POPULAR</span>
+          <span className="bg-[#0c7d74] text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">MÁS POPULAR</span>
         </div>
       )}
       
@@ -166,7 +166,7 @@ const PricingCard = (props: Package) => {
       <p
         className={cn(
           "mt-4 text-sm text-gray-500",
-          highlight && "text-blue-50"
+          highlight && "text-white"
         )}
       >
         {description}
@@ -183,7 +183,7 @@ const PricingCard = (props: Package) => {
         <span
           className={cn(
             "text-base font-medium text-gray-500 ml-2",
-            highlight && "text-blue-50"
+            highlight && "text-white"
           )}
         >
           {type === "monthly" ? "/mes" : "/año"}
@@ -194,8 +194,8 @@ const PricingCard = (props: Package) => {
         className={cn(
           "w-full mt-8 rounded-xl py-6",
           highlight 
-            ? "bg-white text-blue-600 hover:bg-blue-50" 
-            : "bg-blue-600 text-white hover:bg-blue-700"
+            ? "bg-white text-[#0c7d74] hover:bg-[#0c7d74]/10" 
+            : "bg-[#0c7d74] text-white hover:bg-[#0a6b63]"
         )}
       >
         <Link href="/register">
@@ -213,7 +213,7 @@ const PricingCard = (props: Package) => {
               <div className="flex-shrink-0">
                 <CheckCircle2
                   className={cn(
-                    "h-5 w-5 text-blue-500 bg-white rounded-full",
+                    "h-5 w-5 text-[#0c7d74] bg-white rounded-full",
                     highlight && "text-white bg-transparent"
                   )}
                 />

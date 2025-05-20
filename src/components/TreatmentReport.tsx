@@ -142,7 +142,8 @@ export default function TreatmentReport({
       
       toast({
         title: "Versión activada",
-        description: "Se ha cambiado a la versión seleccionada"
+        description: "Se ha cambiado a la versión seleccionada",
+        duration: 3000,
       });
     }
   };
@@ -346,6 +347,7 @@ export default function TreatmentReport({
     toast({
       title: "Reporte enviado a imprimir",
       description: "Se ha enviado el reporte a la cola de impresión",
+      duration: 3000,
     });
   }
   
@@ -396,6 +398,7 @@ export default function TreatmentReport({
     toast({
       title: "Copiado al portapapeles",
       description: "El reporte ha sido copiado como texto",
+      duration: 3000,
     });
   }
   
@@ -406,6 +409,7 @@ export default function TreatmentReport({
       title: "Función no implementada",
       description: "La descarga de PDF aún no está disponible",
       variant: "destructive",
+      duration: 5000,
     });
   }
 
@@ -512,10 +516,25 @@ export default function TreatmentReport({
     <>
       <Button 
         variant="outline"
-        className="flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
-        onClick={() => setOpen(true)}
-        disabled={!isPlanSaved}
-        title={!isPlanSaved ? "Guarde el plan antes de generar el reporte" : ""}
+        className={`flex items-center gap-2 ${
+          isPlanSaved 
+            ? "bg-slate-900 text-white hover:bg-slate-800 hover:text-white" 
+            : "bg-slate-400 text-white hover:bg-slate-400 hover:text-white cursor-not-allowed"
+        }`}
+        onClick={() => {
+          if (!isPlanSaved) {
+            // Show alert when plan is not saved
+            toast({
+              title: "Plan no guardado",
+              description: "Es necesario guardar el plan antes de generar el reporte.",
+              variant: "destructive",
+              duration: 5000,
+            });
+            return;
+          }
+          setOpen(true);
+        }}
+        aria-disabled={!isPlanSaved}
       >
         <Printer className="h-4 w-4" />
         Generar Reporte
@@ -934,9 +953,9 @@ export default function TreatmentReport({
               <Copy className="h-4 w-4" />
               Copiar
             </Button>
-            <Button variant="outline" onClick={handleDownloadPDF} className="gap-2">
-              <Download className="h-4 w-4" />
-              Descargar PDF
+            <Button variant="outline" onClick={() => setOpen(false)} className="gap-2">
+              <X className="h-4 w-4" />
+              Cerrar
             </Button>
             <Button onClick={handlePrint} className="gap-2 bg-slate-900 text-white hover:bg-slate-800 hover:text-white">
               <Printer className="h-4 w-4" />

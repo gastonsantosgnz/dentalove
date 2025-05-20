@@ -142,6 +142,9 @@ export default function ServicesTable() {
   });
   const inputRef = useRef<HTMLInputElement>(null);
   
+  // Estado para controlar el diálogo de añadir servicio
+  const [isAddServiceOpen, setIsAddServiceOpen] = useState(false);
+  
   // Usar el contexto de servicios en lugar de estado local
   const { servicios: data, isLoading, updateService, deleteService, createService } = useServicios();
 
@@ -251,18 +254,25 @@ export default function ServicesTable() {
           <DeleteSelectedDialog table={table} onDelete={handleDeleteRows} />
           
           {/* Add service button */}
-          <AddServiceDialog
-            onOpenChange={setOpen => {}}
-            onSubmit={async (serviceData) => {
-              try {
-                await createService(serviceData);
-              } catch (error) {
-                console.error("Error creating service:", error);
-              }
-            }}
-          />
+          <Button onClick={() => setIsAddServiceOpen(true)}>
+            <Plus className="-ms-1 me-2 h-4 w-4" />
+            Nuevo Servicio
+          </Button>
         </div>
       </div>
+
+      {/* Add Service Dialog */}
+      <AddServiceDialog
+        open={isAddServiceOpen}
+        onOpenChange={setIsAddServiceOpen}
+        onSubmit={async (serviceData) => {
+          try {
+            await createService(serviceData);
+          } catch (error) {
+            console.error("Error creating service:", error);
+          }
+        }}
+      />
 
       {/* Table */}
       <div className="overflow-hidden rounded-lg border border-border bg-background">

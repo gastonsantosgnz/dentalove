@@ -177,9 +177,9 @@ export default function DoctoresTable() {
         const especialidad = row.getValue("especialidad") as string;
       
       return (
-          <Badge className="bg-sky-100 text-sky-800 border-sky-300">
+          <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-sky-100 text-sky-800 border-sky-300">
             {especialidad}
-        </Badge>
+        </div>
       );
     },
       size: 160,
@@ -608,7 +608,13 @@ export default function DoctoresTable() {
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="last:py-0">
+                      <TableCell 
+                        key={cell.id} 
+                        className={cn(
+                          "last:py-0",
+                          cell.column.id === "especialidad" && "hover:bg-transparent"
+                        )}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

@@ -45,6 +45,7 @@ interface AddServiceDialogProps {
   buttonText?: string;
   onSubmit?: (serviceData: ServicioCreate) => void;
   onOpenChange: (open: boolean) => void;
+  open?: boolean;
 }
 
 export function AddServiceDialog({
@@ -52,8 +53,19 @@ export function AddServiceDialog({
   buttonText = "Agregar servicio",
   onSubmit,
   onOpenChange,
+  open: externalOpen,
 }: AddServiceDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use either external or internal state
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (value: boolean) => {
+    setInternalOpen(value);
+    if (onOpenChange) {
+      onOpenChange(value);
+    }
+  };
+  
   const [especialidadPopoverOpen, setEspecialidadPopoverOpen] = useState(false);
   const [tipoPacientePopoverOpen, setTipoPacientePopoverOpen] = useState(false);
   const [especialidades, setEspecialidades] = useState<string[]>([]);
@@ -173,11 +185,17 @@ export function AddServiceDialog({
   }, [formData, onSubmit]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={() => setOpen(true)}>
-        <Plus className="h-4 w-4 mr-2" />
-        {buttonText}
-      </Button>
+    <Dialog 
+      open={open} 
+      onOpenChange={setOpen}
+    >
+      {/* Only show button if we're using internal state */}
+      {externalOpen === undefined && (
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          {buttonText}
+        </Button>
+      )}
       
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader className="mb-2">

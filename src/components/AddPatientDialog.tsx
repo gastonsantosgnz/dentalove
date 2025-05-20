@@ -49,10 +49,22 @@ function parseDisplayDate(displayDate: string): string {
 
 interface AddPatientDialogProps {
   onSubmit: ((data: PacienteCreate) => void) | (() => void);
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }: AddPatientDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use either external or internal state
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (value: boolean) => {
+    setInternalOpen(value);
+    if (onOpenChange) {
+      onOpenChange(value);
+    }
+  };
+  
   const [date, setDate] = useState<Date>();
   const [displayDate, setDisplayDate] = useState('');
   
@@ -143,20 +155,25 @@ export function AddPatientDialog({ onSubmit }: AddPatientDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {/* Reemplazar el DialogTrigger con un botón normal que llama a setOpen(true) */}
-      <Button 
-        className="ml-auto bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
-        onClick={handleOpenDialog}
-      >
-        <Plus
-          className="-ms-1 me-2 opacity-60"
-          size={16}
-          strokeWidth={2}
-          aria-hidden="true"
-        />
-        Nuevo Paciente
-      </Button>
+    <Dialog 
+      open={open} 
+      onOpenChange={setOpen}
+    >
+      {/* Only show button if we're using internal state */}
+      {externalOpen === undefined && (
+        <Button 
+          className="ml-auto bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+          onClick={handleOpenDialog}
+        >
+          <Plus
+            className="-ms-1 me-2 opacity-60"
+            size={16}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+          Nuevo Paciente
+        </Button>
+      )}
       
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>

@@ -145,6 +145,9 @@ export default function PacientesTable() {
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estado para controlar el diálogo de añadir paciente
+  const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
 
   const [sorting, setSorting] = useState<SortingState>([
     {
@@ -226,9 +229,12 @@ export default function PacientesTable() {
       };
       
       return (
-        <Badge className={cn(getBadgeColor(pacienteType))}>
+        <div className={cn(
+          "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+          getBadgeColor(pacienteType)
+        )}>
           {pacienteType}
-        </Badge>
+        </div>
       );
     },
     size: 100,
@@ -537,22 +543,18 @@ export default function PacientesTable() {
             </AlertDialog>
           )}
           {/* Add paciente button */}
-          <AddPatientDialog
-            onSubmit={async (patientData) => {
-              try {
-                // patientData ya tiene la estructura correcta para Supabase
-                // ya que viene del formulario actualizado
-                
-                // Save to Supabase
-                await createPaciente(patientData);
-                
-                // Refresh data
-                await loadPacientes();
-              } catch (error) {
-                console.error("Error creating patient:", error);
-              }
-            }}
-          />
+          <Button 
+            className="ml-auto bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+            onClick={() => setIsAddPatientOpen(true)}
+          >
+            <Plus
+              className="-ms-1 me-2"
+              size={16}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+            Nuevo Paciente
+          </Button>
         </div>
       </div>
 
@@ -634,7 +636,13 @@ export default function PacientesTable() {
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="last:py-0">
+                      <TableCell 
+                        key={cell.id} 
+                        className={cn(
+                          "last:py-0",
+                          cell.column.id === "tipoPaciente" && "hover:bg-transparent"
+                        )}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -755,6 +763,26 @@ export default function PacientesTable() {
           </Pagination>
         </div>
       </div>
+
+      {/* Add Patient Dialog */}
+      <AddPatientDialog
+        open={isAddPatientOpen}
+        onOpenChange={setIsAddPatientOpen}
+        onSubmit={async (patientData) => {
+          try {
+            // patientData ya tiene la estructura correcta para Supabase
+            // ya que viene del formulario actualizado
+            
+            // Save to Supabase
+            await createPaciente(patientData);
+            
+            // Refresh data
+            await loadPacientes();
+          } catch (error) {
+            console.error("Error creating patient:", error);
+          }
+        }}
+      />
     </motion.div>
   );
 } 

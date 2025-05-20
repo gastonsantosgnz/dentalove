@@ -73,19 +73,13 @@ import {
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AddDoctorDialog } from "./AddDoctorDialog";
 import { Doctor, createDoctor, deleteDoctor, getDoctores, updateDoctor } from "@/lib/doctoresService";
 import { DoctorRowActions } from "./DoctorRowActions";
 import { DeleteDoctorAlertDialog } from "./DeleteDoctorAlertDialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import dynamic from "next/dynamic";
+
+// Dynamically import the AddDoctorDialog component
+const AddDoctorDialog = dynamic(() => import("./AddDoctorDialog").then(mod => mod.AddDoctorDialog));
 
 // Custom filter function for multi-column searching
 const multiColumnFilterFn: FilterFn<Doctor> = (row, columnId, filterValue) => {

@@ -83,10 +83,11 @@ import {
   Clock,
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useCallback } from "react";
-import { AddServiceDialog } from "@/components/AddServiceDialog";
 import { EditServiceDialog } from "@/components/EditServiceDialog";
 import { Servicio } from "@/lib/database";
 import { useServicios } from "@/contexts/ServiciosContext";
+import { useToast } from "./ui/use-toast";
+import dynamic from "next/dynamic";
 
 // Import the new components
 import { getColumns } from "@/components/servicios/ServicesColumns";
@@ -94,6 +95,9 @@ import TableFilters from "@/components/servicios/TableFilters";
 import ColumnVisibility from "@/components/servicios/ColumnVisibility";
 import DeleteSelectedDialog from "@/components/servicios/DeleteSelectedDialog";
 import TablePagination from "@/components/servicios/TablePagination";
+
+// Dynamically import the dialog component
+const AddServiceDialog = dynamic(() => import("./AddServiceDialog").then(mod => mod.AddServiceDialog));
 
 type Item = Servicio;
 

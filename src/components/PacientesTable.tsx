@@ -84,7 +84,6 @@ import {
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AddPatientDialog } from "@/components/AddPatientDialog";
 import { getPatientTreatmentPlans } from "@/lib/treatmentPlansStorage";
 import { getPatientType } from "@/components/AddPatientDialog";
 import { RowActions } from "@/components/RowActions";
@@ -96,6 +95,10 @@ import {
   deletePaciente as deleteSupabasePaciente 
 } from "@/lib/pacientesService";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+// Dynamically import heavy components
+const AddPatientDialog = dynamic(() => import("@/components/AddPatientDialog").then(mod => mod.AddPatientDialog));
 
 type Item = Paciente & {
   tipoPaciente?: string;

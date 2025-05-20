@@ -182,7 +182,7 @@ export function AddServiceDialog({
         tipo_paciente: "General",
       });
     });
-  }, [formData, onSubmit]);
+  }, [formData, onSubmit, setOpen]);
 
   return (
     <Dialog 

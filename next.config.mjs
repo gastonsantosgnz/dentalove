@@ -7,6 +7,9 @@ const nextConfig = {
   images: {
     domains: ["images.unsplash.com", "res.cloudinary.com", "jzlagehrckqnxufcmbjg.supabase.co", "randomuser.me"],
   },
+  experimental: {
+    serverActions: true,
+  },
 };
 
 const withMDX = nextMDX({

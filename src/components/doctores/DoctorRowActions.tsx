@@ -5,14 +5,22 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Ellipsis, Pencil, Trash } from "lucide-react";
+import { Edit, Ellipsis, Trash } from "lucide-react";
 import { Row } from "@tanstack/react-table";
 import { Doctor } from "@/lib/doctoresService";
 import { AddDoctorDialog } from "./AddDoctorDialog";
-import { useState, useRef, useEffect } from "react";
-import { DeleteDoctorAlertDialog } from "./DeleteDoctorAlertDialog";
+import { useState } from "react";
+import { 
+  AlertDialog, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
 
 interface DoctorRowActionsProps {
   row: Row<Doctor>;
@@ -26,46 +34,21 @@ export function DoctorRowActions({
   onDoctorDeleted,
 }: DoctorRowActionsProps) {
   const doctor = row.original;
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   
-  // Referencia para el botón del menú para restaurar el foco
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Manejar el cambio de estado del diálogo de edición
-  const handleEditOpenChange = (open: boolean) => {
-    setIsEditOpen(open);
-    
-    // Si el diálogo se está cerrando, restaurar el foco al botón del menú
-    if (!open && menuButtonRef.current) {
-      // Usar setTimeout para asegurar que el foco se restaura DESPUÉS de que el diálogo se cierra
-      setTimeout(() => {
-        // Enfocar un elemento fuera del contenedor de la tabla
-        document.body.focus();
-        // Luego enfocar el botón del menú
-        menuButtonRef.current?.focus();
-      }, 0);
-    }
-  };
-
-  // Manejar el cambio de estado del diálogo de eliminación
-  const handleConfirmOpenChange = (open: boolean) => {
-    setIsConfirmOpen(open);
-    
-    // Si el diálogo se está cerrando, restaurar el foco al botón del menú
-    if (!open && menuButtonRef.current) {
-      // Usar setTimeout para asegurar que el foco se restaura DESPUÉS de que el diálogo se cierra
-      setTimeout(() => {
-        // Enfocar un elemento fuera del contenedor de la tabla
-        document.body.focus();
-        // Luego enfocar el botón del menú
-        menuButtonRef.current?.focus();
-      }, 0);
+  const handleDelete = async () => {
+    try {
+      await onDoctorDeleted(doctor.id);
+      setIsDeleteOpen(false);
+    } catch (error) {
+      console.error("Error deleting doctor:", error);
+      setIsDeleteOpen(false);
     }
   };
 
   return (
-    <div className="flex justify-end items-center">
+    <div className="relative">
       <AddDoctorDialog
         initialData={doctor}
         isEditing={true}
@@ -76,41 +59,56 @@ export function DoctorRowActions({
           });
         }}
         isOpen={isEditOpen}
-        onOpenChange={handleEditOpenChange}
+        onOpenChange={setIsEditOpen}
       />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            ref={menuButtonRef}
-            variant="ghost" 
-            size="icon" 
-            className="h-7 w-7"
+          <Button
+            variant="ghost"
+            className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
           >
             <Ellipsis className="h-4 w-4" />
-            <span className="sr-only">Opciones</span>
+            <span className="sr-only">Abrir menú</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />
-            <span>Editar</span>
+        <DropdownMenuContent align="end" className="w-[160px]">
+          <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+            <Edit className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Editar
           </DropdownMenuItem>
-          
-          <DeleteDoctorAlertDialog
-            isOpen={isConfirmOpen}
-            onOpenChange={handleConfirmOpenChange}
-            doctorName={doctor.nombre_completo}
-            onDelete={() => onDoctorDeleted(doctor.id)}
-            trigger={
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <Trash className="mr-2 h-4 w-4" />
-                <span>Eliminar</span>
-              </DropdownMenuItem>
-            }
-          />
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setIsDeleteOpen(true)}
+            className="text-red-600"
+          >
+            <Trash className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            Eliminar
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar eliminación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Está seguro de eliminar al doctor <span className="font-semibold">{doctor.nombre_completo}</span>?
+              <br />
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Eliminar
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

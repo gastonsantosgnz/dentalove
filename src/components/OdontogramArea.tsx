@@ -28,7 +28,7 @@ interface OdontogramAreaProps {
   patientName: string
   patientType: "Adulto" | "Pediátrico" | "Adolescente"
   servicios: Servicio[]
-  pacienteId?: string  // Nuevo prop para identificar al paciente
+  pacienteId: string  // Nuevo prop para identificar al paciente
   onPlanSaved?: () => void  // Callback para notificar cuando se guarda un plan
   existingPlan?: {  // Nuevo prop para edición de planes existentes
     planId: string
@@ -46,7 +46,7 @@ export default function OdontogramArea({
   patientName, 
   patientType,
   servicios = [],
-  pacienteId = "",
+  pacienteId,
   onPlanSaved,
   existingPlan,
   isEditing = false
@@ -57,6 +57,12 @@ export default function OdontogramArea({
   // Estados para el feedback del guardado
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  
+  // Estado para guardar el ID del plan una vez guardado
+  const [savedPlanId, setSavedPlanId] = useState<string | undefined>(existingPlan?.planId);
+  
+  // Estado para seguir si el plan ha sido modificado desde la última vez que se guardó
+  const [isPlanModified, setIsPlanModified] = useState(false);
   
   // Estado para controlar manualmente el tipo de odontograma
   const [manualChartType, setManualChartType] = useState<"adult" | "child" | null>(null);
@@ -223,6 +229,9 @@ export default function OdontogramArea({
     const updatedCosts = { ...customCosts, [key]: newCost };
     setCustomCosts(updatedCosts);
     
+    // Marcar el plan como modificado
+    setIsPlanModified(true);
+    
     // Directly update active version
     const newVersions = planVersions.map(version => {
       if (version.isActive) {
@@ -295,6 +304,9 @@ export default function OdontogramArea({
     newToothStatus[tooth] = updatedToothStatus;
     setToothStatus(newToothStatus);
     
+    // Marcar el plan como modificado
+    setIsPlanModified(true);
+    
     // Directamente actualizar la versión activa
     const newVersions = planVersions.map(version => {
       if (version.isActive) {
@@ -362,6 +374,9 @@ export default function OdontogramArea({
     };
 
     setPlanVersions(prev => [...prev, newVersion]);
+    
+    // Marcar el plan como modificado al crear una nueva versión
+    setIsPlanModified(true);
 
     toast({
       title: "Versión creada",
@@ -377,6 +392,8 @@ export default function OdontogramArea({
         isActive: version.id === versionId
       }));
     });
+    // Marcar el plan como modificado al cambiar de versión
+    setIsPlanModified(true);
   }, []);
 
   // Función para eliminar una versión
@@ -405,6 +422,9 @@ export default function OdontogramArea({
       return filtered;
     });
 
+    // Marcar el plan como modificado al eliminar una versión
+    setIsPlanModified(true);
+
     toast({
       title: "Versión eliminada",
       description: `Se ha eliminado la ${versionToDelete.nombre}`
@@ -417,6 +437,8 @@ export default function OdontogramArea({
       ...prev,
       [tooth]: comment
     }));
+    // Marcar el plan como modificado
+    setIsPlanModified(true);
   }, []);
 
   // Función para guardar el plan actual en Supabase
@@ -462,7 +484,7 @@ export default function OdontogramArea({
           isActive: version.isActive,
           editableCosts: version.id === activeVersion.id ? customCosts : version.editableCosts
         })),
-        isEditing ? existingPlan?.planId : undefined // Pass the existing plan ID if editing
+        savedPlanId || (isEditing ? existingPlan?.planId : undefined) // Use savedPlanId if available
       );
       
       setSaveStatus("success");
@@ -474,8 +496,8 @@ export default function OdontogramArea({
           : "El plan de tratamiento se ha guardado correctamente con todas sus versiones"
       });
       
-      // If we're editing, we still want to call onPlanSaved to notify the parent component
-      if (isEditing && onPlanSaved) {
+      // Call onPlanSaved regardless of whether we're editing or creating a new plan
+      if (onPlanSaved) {
         onPlanSaved();
       }
       
@@ -483,6 +505,10 @@ export default function OdontogramArea({
       setTimeout(() => {
         setSaveStatus("idle");
       }, 5000);
+
+      // Actualizar el estado del plan guardado
+      setSavedPlanId(planId);
+      setIsPlanModified(false);
     } catch (error) {
       console.error(isEditing ? "Error al actualizar el plan:" : "Error al guardar el plan:", error);
       setSaveStatus("error");
@@ -500,7 +526,7 @@ export default function OdontogramArea({
     } finally {
       setIsSaving(false);
     }
-  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments]);
+  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments, savedPlanId, isPlanModified]);
 
   return (
     <motion.div 
@@ -518,7 +544,7 @@ export default function OdontogramArea({
         </div>
         
         {/* Botón para guardar el plan */}
-        {pacienteId && Object.keys(treatmentsByTooth).length > 0 && (
+        {pacienteId.trim() !== "" && Object.keys(treatmentsByTooth).length > 0 && (
           <Button 
             onClick={savePlan} 
             className={cn(
@@ -527,7 +553,7 @@ export default function OdontogramArea({
               saveStatus === "error" ? "bg-red-600 hover:bg-red-700 text-white" : 
               "bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
             )}
-            disabled={isSaving}
+            disabled={isSaving || (savedPlanId !== undefined && !isPlanModified)}
           >
             {isSaving ? (
               <>

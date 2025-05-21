@@ -4,6 +4,7 @@ import { ToothStatus } from "@/components/DentalChart";
 
 interface ConditionsTabProps {
   toothStatus: Record<string, ToothStatus[]>;
+  toothComments?: Record<string, string>;
 }
 
 // Helper to determine if key is a general area
@@ -11,7 +12,7 @@ const isGeneralAreaKey = (key: string): boolean => {
   return ["boca-completa", "arco-superior", "arco-inferior", "supernumerario"].includes(key);
 };
 
-export function ConditionsTab({ toothStatus }: ConditionsTabProps) {
+export function ConditionsTab({ toothStatus, toothComments = {} }: ConditionsTabProps) {
   // Process conditions (only for specific teeth)
   const conditionsByTooth: Record<string, ToothStatus[]> = {};
   
@@ -54,6 +55,12 @@ export function ConditionsTab({ toothStatus }: ConditionsTabProps) {
                   </li>
                 ))}
               </ul>
+              {toothComments[tooth] && (
+                <div className="mt-3 border-t pt-2">
+                  <p className="text-xs font-medium text-slate-600">Comentario:</p>
+                  <p className="text-sm mt-1">{toothComments[tooth]}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>

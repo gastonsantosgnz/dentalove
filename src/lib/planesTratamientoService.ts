@@ -844,6 +844,7 @@ export async function getPlanVersionDetail(versionId: string) {
     .select(`
       id,
       zona,
+      comentario,
       zona_tratamientos (
         id,
         servicio_id,
@@ -862,8 +863,14 @@ export async function getPlanVersionDetail(versionId: string) {
 
   // Convertir al formato toothStatus
   const toothStatus: Record<string, ToothStatus[]> = {};
+  const toothComments: Record<string, string> = {};
 
   zonas?.forEach(zona => {
+    // Guardar comentario si existe
+    if (zona.comentario) {
+      toothComments[zona.zona] = zona.comentario;
+    }
+    
     const zonaTratamientos = zona.zona_tratamientos.map((t: any) => ({
       id: t.id,
       status: t.nombre_tratamiento,
@@ -884,7 +891,8 @@ export async function getPlanVersionDetail(versionId: string) {
 
   return {
     version,
-    toothStatus
+    toothStatus,
+    toothComments
   };
 }
 

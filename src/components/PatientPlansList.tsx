@@ -128,14 +128,17 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
       </h2>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {[1, 2, 3, 4, 5, 6].map((item) => (
             <Card key={item} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="h-5 w-3/4 bg-slate-200 rounded-md animate-pulse"></div>
-                <div className="h-4 w-1/2 bg-slate-200 rounded-md animate-pulse mt-2"></div>
+              <CardHeader className="pb-2 flex flex-row items-start justify-between">
+                <div>
+                  <div className="h-5 w-3/4 bg-slate-200 rounded-md animate-pulse"></div>
+                  <div className="h-4 w-1/2 bg-slate-200 rounded-md animate-pulse mt-2"></div>
+                </div>
+                <div className="h-8 w-24 bg-slate-200 rounded-md animate-pulse"></div>
               </CardHeader>
-              <CardContent className="pb-2 space-y-3">
+              <CardContent className="pb-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <div className="h-4 w-1/3 bg-slate-200 rounded-md animate-pulse"></div>
                   <div className="h-4 w-6 bg-slate-200 rounded-md animate-pulse"></div>
@@ -149,56 +152,49 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
                   <div className="h-4 w-16 bg-slate-200 rounded-md animate-pulse"></div>
                 </div>
               </CardContent>
-              <div className="px-6 py-3 border-t">
-                <div className="h-9 w-full bg-slate-200 rounded-md animate-pulse"></div>
-              </div>
             </Card>
           ))}
         </div>
       ) : plans.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {plans.map(plan => (
             <Card key={plan.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">
-                  {/* Mostrar nombre del paciente en vez del nombre del plan */}
-                  <span>{plan.paciente_nombre}</span>
-                </CardTitle>
-                {/* Mostrar fecha formateada debajo del título */}
-                <CardDescription className="flex items-center mt-1">
-                  <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                  {formatFecha(plan.fecha)}
-                </CardDescription>
+              <CardHeader className="pb-2 flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg">
+                    <span>{plan.paciente_nombre}</span>
+                  </CardTitle>
+                  <CardDescription className="flex items-center mt-1">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                    {formatFecha(plan.fecha)}
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="flex items-center gap-1 p-2 h-8"
+                  onClick={() => router.push(`/pacientes/${plan.paciente_id}/planes/${plan.id}`)}
+                >
+                  <FileCheck className="h-4 w-4" />
+                  <span>Ver detalles</span>
+                </Button>
               </CardHeader>
-              <CardContent className="pb-2">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Tratamientos:</span>
+              <CardContent className="pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="text-sm">
+                    <span className="text-slate-600">Tratamientos: </span>
                     <span>{plan.totalTreatments}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Dientes tratados:</span>
+                  <div className="text-sm">
+                    <span className="text-slate-600">Dientes tratados: </span>
                     <span>{plan.totalTeeth}</span>
                   </div>
-                  <div className="flex justify-between font-semibold">
-                    <span>Total:</span>
+                  <div className="font-semibold">
+                    <span>Total: </span>
                     <span>${plan.costo_total.toLocaleString()}</span>
                   </div>
                 </div>
               </CardContent>
-              <div className="px-6 py-3 border-t">
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-between"
-                  onClick={() => router.push(`/pacientes/${plan.paciente_id}/planes/${plan.id}`)}
-                >
-                  <span className="flex items-center">
-                    <FileCheck className="mr-2 h-4 w-4" />
-                    Ver detalles
-                  </span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
             </Card>
           ))}
         </div>

@@ -60,6 +60,7 @@ export default function TreatmentPlanDetailsPage() {
   const [versions, setVersions] = useState<PlanVersion[]>([]);
   const [activeVersion, setActiveVersionState] = useState<PlanVersion | null>(null);
   const [versionsToothStatus, setVersionsToothStatus] = useState<Record<string, Record<string, ToothStatus[]>>>({});
+  const [toothComments, setToothComments] = useState<Record<string, string>>({});
   
   useEffect(() => {
     const loadData = async () => {
@@ -68,9 +69,12 @@ export default function TreatmentPlanDetailsPage() {
         setError(null);
         
         // Load the complete plan from Supabase
-        const { plan: loadedPlan, toothStatus: loadedStatus, version } = await getCompletePlanTratamiento(planId);
+        const { plan: loadedPlan, toothStatus: loadedStatus, version, toothComments: loadedComments } = await getCompletePlanTratamiento(planId);
         setPlan(loadedPlan);
         setToothStatus(loadedStatus);
+        if (loadedComments) {
+          setToothComments(loadedComments);
+        }
         
         // Load versions
         const planVersions = await getPlanVersiones(planId);
@@ -131,11 +135,14 @@ export default function TreatmentPlanDetailsPage() {
       await setActiveVersion(planId, versionId);
       
       // Get the version details
-      const { version, toothStatus: versionToothStatus } = await getPlanVersionDetail(versionId);
+      const { version, toothStatus: versionToothStatus, toothComments: versionToothComments } = await getPlanVersionDetail(versionId);
       
       // Update the UI
       setActiveVersionState(version);
       setToothStatus(versionToothStatus);
+      if (versionToothComments) {
+        setToothComments(versionToothComments);
+      }
       
       // Update versions tooth status
       setVersionsToothStatus(prev => ({
@@ -236,7 +243,7 @@ export default function TreatmentPlanDetailsPage() {
         </TabsContent>
         
         <TabsContent value="condiciones">
-          <ConditionsTab toothStatus={toothStatus} />
+          <ConditionsTab toothStatus={toothStatus} toothComments={toothComments} />
         </TabsContent>
         
         {versions.length > 1 && (

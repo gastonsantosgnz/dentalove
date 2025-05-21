@@ -111,7 +111,10 @@ export default function TreatmentReport({
   }
   const [observations, setObservations] = useState(initialObservation())
 
-  const [toothComments, setToothComments] = useState<Record<string, string>>(initialToothComments)
+  // Use useMemo to prevent unnecessary re-renders with empty comment objects
+  const [toothComments, setToothComments] = useState<Record<string, string>>(
+    useMemo(() => initialToothComments || {}, [])
+  )
   const [editingCommentTooth, setEditingCommentTooth] = useState<string | null>(null)
   const [currentComment, setCurrentComment] = useState("")
 
@@ -513,12 +516,6 @@ export default function TreatmentReport({
   const handleCostBlur = (treatment: string) => {
     handleSaveCost(treatment)
   }
-
-  // Log para depuración - ver si los comentarios llegaron correctamente
-  useEffect(() => {
-    console.log("TreatmentReport recibió comentarios:", initialToothComments);
-    setToothComments(initialToothComments);
-  }, [initialToothComments]);
 
   return (
     <>

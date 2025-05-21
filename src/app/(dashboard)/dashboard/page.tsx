@@ -231,7 +231,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <Link 
-                        href={`/pacientes/${patient.id}`} 
+                        href={`/pacientes/${patient.id}/planes`} 
                         className="text-xs text-primary hover:underline"
                       >
                         Ver detalles

@@ -59,12 +59,14 @@ export function AddServiceDialog({
   
   // Use either external or internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
-  const setOpen = (value: boolean) => {
+  
+  // Wrapping setOpen in useCallback to avoid unnecessary re-renders
+  const setOpen = useCallback((value: boolean) => {
     setInternalOpen(value);
     if (onOpenChange) {
       onOpenChange(value);
     }
-  };
+  }, [onOpenChange]);
   
   const [especialidadPopoverOpen, setEspecialidadPopoverOpen] = useState(false);
   const [tipoPacientePopoverOpen, setTipoPacientePopoverOpen] = useState(false);

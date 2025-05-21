@@ -135,7 +135,7 @@ export default function CalendarioPage() {
   // Load initial data on component mount
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   return (
     <motion.div

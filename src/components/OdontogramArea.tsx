@@ -526,7 +526,7 @@ export default function OdontogramArea({
     } finally {
       setIsSaving(false);
     }
-  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments, savedPlanId, isPlanModified]);
+  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments, savedPlanId]);
 
   return (
     <motion.div 

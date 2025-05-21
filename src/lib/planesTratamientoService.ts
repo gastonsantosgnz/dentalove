@@ -326,6 +326,7 @@ export async function getCompletePlanTratamiento(planId: string, versionId?: str
   plan: PlanTratamiento | null;
   version?: any;
   toothStatus: Record<string, ToothStatus[]>;
+  toothComments?: Record<string, string>;
 }> {
   // Get the treatment plan
   const plan = await getPlanTratamientoById(planId);
@@ -359,11 +360,17 @@ export async function getCompletePlanTratamiento(planId: string, versionId?: str
     zonas = await getPlanZonas(planId);
   }
   
-  // Initialize toothStatus
+  // Initialize toothStatus and toothComments
   const toothStatus: Record<string, ToothStatus[]> = {};
+  const toothComments: Record<string, string> = {};
   
   // Process each zone
   for (const zona of zonas) {
+    // Guardar comentario si existe
+    if (zona.comentario) {
+      toothComments[zona.zona] = zona.comentario;
+    }
+    
     // Get conditions for this zone
     const condiciones = await getZonaCondiciones(zona.id);
     
@@ -397,7 +404,7 @@ export async function getCompletePlanTratamiento(planId: string, versionId?: str
     });
   }
   
-  return { plan, version, toothStatus };
+  return { plan, version, toothStatus, toothComments };
 }
 
 /**
@@ -409,6 +416,7 @@ export async function saveCompletePlanTratamiento(
     fecha: string;
     observaciones: string;
     costo_total: number;
+    toothComments?: Record<string, string>;
   },
   toothStatus: Record<string, ToothStatus[]>,
   versiones?: Array<{
@@ -566,6 +574,7 @@ export async function saveCompletePlanTratamiento(
             plan_id: planId,
             version_id: versionId,
             zona: zonaKey,
+            comentario: planData.toothComments?.[zonaKey] || null,
           })
           .select('id')
           .single();
@@ -675,6 +684,7 @@ export async function saveCompletePlanTratamiento(
           plan_id: planId,
           version_id: versionId,
           zona: zonaKey,
+          comentario: planData.toothComments?.[zonaKey] || null,
         })
         .select('id')
         .single();
@@ -917,6 +927,7 @@ export async function getPlanDetail(planId: string) {
       .select(`
         id,
         zona,
+        comentario,
         zona_tratamientos (
           id,
           servicio_id,
@@ -941,6 +952,7 @@ export async function getPlanDetail(planId: string) {
       .select(`
         id,
         zona,
+        comentario,
         zona_tratamientos (
           id,
           servicio_id,
@@ -961,8 +973,14 @@ export async function getPlanDetail(planId: string) {
 
   // 4. Reestructurar los datos para que coincidan con el formato toothStatus
   const toothStatus: Record<string, ToothStatus[]> = {};
+  const toothComments: Record<string, string> = {};
 
   zonas?.forEach(zona => {
+    // Almacenar comentarios si existen
+    if (zona.comentario) {
+      toothComments[zona.zona] = zona.comentario;
+    }
+    
     const zonaTratamientos = zona.zona_tratamientos.map((t: any) => ({
       id: t.id,
       status: t.nombre_tratamiento,
@@ -984,7 +1002,8 @@ export async function getPlanDetail(planId: string) {
   return {
     plan,
     version: activeVersion,
-    toothStatus
+    toothStatus,
+    toothComments
   };
 }
 

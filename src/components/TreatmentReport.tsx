@@ -51,6 +51,7 @@ interface TreatmentReportProps {
   onVersionChange?: (versionId: string) => void
   customCosts?: Record<string, number>
   isPlanSaved?: boolean
+  initialToothComments?: Record<string, string>
 }
 
 export default function TreatmentReport({
@@ -61,7 +62,8 @@ export default function TreatmentReport({
   activeVersionId = "",
   onVersionChange,
   customCosts = {},
-  isPlanSaved = true
+  isPlanSaved = true,
+  initialToothComments = {}
 }: TreatmentReportProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
@@ -109,7 +111,7 @@ export default function TreatmentReport({
   }
   const [observations, setObservations] = useState(initialObservation())
 
-  const [toothComments, setToothComments] = useState<Record<string, string>>({})
+  const [toothComments, setToothComments] = useState<Record<string, string>>(initialToothComments)
   const [editingCommentTooth, setEditingCommentTooth] = useState<string | null>(null)
   const [currentComment, setCurrentComment] = useState("")
 
@@ -512,6 +514,12 @@ export default function TreatmentReport({
     handleSaveCost(treatment)
   }
 
+  // Log para depuración - ver si los comentarios llegaron correctamente
+  useEffect(() => {
+    console.log("TreatmentReport recibió comentarios:", initialToothComments);
+    setToothComments(initialToothComments);
+  }, [initialToothComments]);
+
   return (
     <>
       <Button 
@@ -632,29 +640,10 @@ export default function TreatmentReport({
                                     </ul>
                                   </div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="ml-2 no-print" onClick={() => handleCommentClick(tooth)}>
-                                  <PlusCircle className="h-4 w-4 mr-1" />
-                                  <span className="text-xs">Comentar</span>
-                                </Button>
                               </div>
-                              {toothComments[tooth] && editingCommentTooth !== tooth && (
+                              {toothComments[tooth] && (
                                 <div className="mt-2 p-2 bg-muted rounded-md text-xs print:bg-gray-100 print:p-1.5">
                                   <p><strong>Comentario:</strong> {toothComments[tooth]}</p>
-                                </div>
-                              )}
-                              {editingCommentTooth === tooth && (
-                                 <div className="mt-2 space-y-1 no-print">
-                                  <Textarea 
-                                    value={currentComment}
-                                    onChange={(e) => setCurrentComment(e.target.value)}
-                                    placeholder="Añadir comentario para el diente..."
-                                    className="text-xs"
-                                    rows={2}
-                                  />
-                                  <div className="flex justify-end gap-1">
-                                    <Button size="icon" variant="ghost" onClick={handleSaveComment}> <Check className="h-3 w-3"/> </Button>
-                                    <Button size="icon" variant="ghost" onClick={handleCancelComment}> <X className="h-3 w-3"/> </Button>
-                                  </div>
                                 </div>
                               )}
                             </div>

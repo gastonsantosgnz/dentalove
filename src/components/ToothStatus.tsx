@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import React from "react"
 import { ToothStatus } from "./DentalChart"
+import { Textarea } from "@/components/ui/textarea"
 
 // Tipos
 export interface Servicio {
@@ -30,21 +31,25 @@ interface ToothStatusProps {
   servicios: Servicio[]
   customCosts?: Record<string, number>
   setCustomCosts?: React.Dispatch<React.SetStateAction<Record<string, number>>>
+  toothComments?: Record<string, string>
+  onUpdateComment?: (tooth: string, comment: string) => void
 }
 
 // Lista de condiciones (diagnósticos)
 const conditions = [
   { name: "Ausente", value: "ausente", color: "#6B7280" },
   { name: "Caries activa", value: "caries-activa", color: "#DC2626" },
-  { name: "Caries Fase I", value: "caries-fase-i", color: "#FDE68A" },
-  { name: "Caries Fase II", value: "caries-fase-ii", color: "#FBBF24" },
-  { name: "Caries Fase III", value: "caries-fase-iii", color: "#F59E42" },
-  { name: "Caries Fase IV", value: "caries-fase-iv", color: "#EA580C" },
-  { name: "Caries Fase V", value: "caries-fase-v", color: "#B91C1C" },
+  { name: "Caries I", value: "caries-fase-i", color: "#FDE68A" },
+  { name: "Caries II", value: "caries-fase-ii", color: "#FBBF24" },
+  { name: "Caries III", value: "caries-fase-iii", color: "#F59E42" },
+  { name: "Caries IV", value: "caries-fase-iv", color: "#EA580C" },
+  { name: "Caries V", value: "caries-fase-v", color: "#B91C1C" },
   { name: "Caries incipiente", value: "caries-incipiente", color: "#F59E0B" },
+  { name: "Corona ajustada", value: "corona-ajustada", color: "#06B6D4" },
   { name: "Fractura", value: "fractura", color: "#EF4444" },
   { name: "Lesión periapical", value: "lesion-periapical", color: "#8B5CF6" },
   { name: "Pieza Ausente", value: "pieza-ausente", color: "#64748B" },
+  { name: "Preventivo", value: "preventivo", color: "#22C55E" },
   { name: "Pulpitis", value: "#7C3AED", color: "#7C3AED" },
   { name: "Resto radicular", value: "resto-radicular", color: "#A16207" },
 ]
@@ -65,11 +70,17 @@ export default function ToothStatusComponent({
   className,
   servicios = [],
   customCosts = {},
-  setCustomCosts
+  setCustomCosts,
+  toothComments = {},
+  onUpdateComment
 }: ToothStatusProps) {
   const [activeTab, setActiveTab] = useState("condition")
   const [busqueda, setBusqueda] = useState<string>("")
   const [filteredServicios, setFilteredServicios] = useState<Servicio[]>(servicios)
+  
+  // States for comment functionality
+  const [isEditingComment, setIsEditingComment] = useState(false)
+  const [currentComment, setCurrentComment] = useState("")
   
   // Calcular información del diente seleccionado
   const { isGeneralArea, areaName, selectedArea } = useMemo(() => {
@@ -232,6 +243,22 @@ export default function ToothStatusComponent({
     setEditingCost(null);
   };
 
+  // Initialize comment when tooth changes
+  useEffect(() => {
+    if (selectedTooth && toothComments) {
+      setCurrentComment(toothComments[selectedTooth] || "")
+      setIsEditingComment(false)
+    }
+  }, [selectedTooth, toothComments])
+
+  // Handle save comment
+  const handleSaveComment = useCallback(() => {
+    if (selectedTooth && onUpdateComment) {
+      onUpdateComment(selectedTooth, currentComment)
+      setIsEditingComment(false)
+    }
+  }, [selectedTooth, currentComment, onUpdateComment])
+
   if (!selectedTooth) {
     return (
       <div className="p-4 text-center text-sm text-muted-foreground">
@@ -272,25 +299,75 @@ export default function ToothStatusComponent({
             No se pueden registrar condiciones en áreas generales, solo dientes específicos.
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {conditions.map((condition) => (
-              <Button
-                key={condition.value}
-                onClick={() => handleConditionSelect(condition)}
-                variant={isConditionSelected(condition.name) ? "default" : "outline"}
-                size="sm"
-                className={cn(
-                  "h-auto py-2 justify-start text-xs",
-                  isConditionSelected(condition.name) && "bg-slate-800 text-white hover:bg-slate-700"
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {conditions.map((condition) => (
+                <Button
+                  key={condition.value}
+                  onClick={() => handleConditionSelect(condition)}
+                  variant={isConditionSelected(condition.name) ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "h-auto py-2 justify-start text-xs",
+                    isConditionSelected(condition.name) && "bg-slate-800 text-white hover:bg-slate-700"
+                  )}
+                >
+                  {isConditionSelected(condition.name) && (
+                    <Check className="w-3 h-3 mr-1 flex-shrink-0" />
+                  )}
+                  {condition.name}
+                </Button>
+              ))}
+            </div>
+
+            {/* Tooth comment section */}
+            <div className="mt-4 border-t pt-3">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-xs font-medium">Comentario</h4>
+                {!isEditingComment ? (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsEditingComment(true)} 
+                    className="h-7 text-xs"
+                  >
+                    {toothComments[selectedTooth] ? "Editar" : "Añadir"}
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => setIsEditingComment(false)} className="h-6 text-xs px-2">
+                      Cancelar
+                    </Button>
+                    <Button size="sm" onClick={handleSaveComment} className="h-6 text-xs px-2">
+                      Guardar
+                    </Button>
+                  </div>
                 )}
-              >
-                {isConditionSelected(condition.name) && (
-                  <Check className="w-3 h-3 mr-1 flex-shrink-0" />
-                )}
-                {condition.name}
-              </Button>
-            ))}
-          </div>
+              </div>
+
+              {isEditingComment ? (
+                <div>
+                  <Textarea 
+                    value={currentComment}
+                    onChange={(e) => setCurrentComment(e.target.value)}
+                    placeholder="Añada un comentario para este diente..."
+                    className="text-xs min-h-[60px]"
+                    rows={2}
+                  />
+                </div>
+              ) : (
+                toothComments[selectedTooth] ? (
+                  <div className="p-2 bg-muted rounded-md text-xs">
+                    {toothComments[selectedTooth]}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No hay comentarios para este diente.
+                  </p>
+                )
+              )}
+            </div>
+          </>
         )}
       </div>
 

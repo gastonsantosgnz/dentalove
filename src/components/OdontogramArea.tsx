@@ -34,6 +34,7 @@ interface OdontogramAreaProps {
     planId: string
     planData: any
     toothStatus: Record<string, ToothStatus[]>
+    toothComments?: Record<string, string>
     versions: any[]
   }
   isEditing?: boolean  // Flag to indicate if we're editing an existing plan
@@ -78,6 +79,20 @@ export default function OdontogramArea({
     existingPlan ? existingPlan.toothStatus : {}
   );
   
+  // Estado para comentarios de dientes
+  const [toothComments, setToothComments] = useState<Record<string, string>>(() => {
+    if (existingPlan && existingPlan.toothComments) {
+      return existingPlan.toothComments;
+    }
+    return {};
+  });
+
+  // Log para depuración
+  useEffect(() => {
+    console.log("OdontogramArea - existingPlan:", existingPlan);
+    console.log("OdontogramArea - toothComments inicializados:", toothComments);
+  }, [existingPlan, toothComments]);
+
   // Estado para la especialidad seleccionada
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>("Todas");
 
@@ -396,6 +411,14 @@ export default function OdontogramArea({
     });
   }, [planVersions, toast]);
 
+  // Manejar la actualización del comentario de un diente
+  const handleUpdateComment = useCallback((tooth: string, comment: string) => {
+    setToothComments(prev => ({
+      ...prev,
+      [tooth]: comment
+    }));
+  }, []);
+
   // Función para guardar el plan actual en Supabase
   const savePlan = useCallback(async () => {
     if (!pacienteId) {
@@ -425,6 +448,7 @@ export default function OdontogramArea({
         fecha: existingPlan ? existingPlan.planData.fecha : new Date().toISOString(),
         observaciones: existingPlan ? existingPlan.planData.observaciones : "",
         costo_total: totalCost,
+        toothComments: toothComments // Incluir los comentarios de dientes
       };
       
       const { plan, planId } = await saveCompletePlanTratamiento(
@@ -476,7 +500,7 @@ export default function OdontogramArea({
     } finally {
       setIsSaving(false);
     }
-  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan]);
+  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments]);
 
   return (
     <motion.div 
@@ -583,6 +607,8 @@ export default function OdontogramArea({
             handleCreateVersion={handleCreateVersion}
             handleDeleteVersion={handleDeleteVersion}
             handleChangeVersion={handleChangeVersion}
+            toothComments={toothComments}
+            onUpdateComment={handleUpdateComment}
           />
         </div>
       </div>
@@ -602,6 +628,7 @@ export default function OdontogramArea({
         handleChangeVersion={handleChangeVersion}
         handleUpdateStatus={handleUpdateStatus}
         isPlanSaved={saveStatus === "success" || isEditing}
+        toothComments={toothComments}
       />
     </motion.div>
   );

@@ -20,6 +20,8 @@ interface ToothStatusPanelProps {
   handleCreateVersion: () => void;
   handleDeleteVersion: (versionId: string) => void;
   handleChangeVersion: (versionId: string) => void;
+  toothComments?: Record<string, string>;
+  onUpdateComment?: (tooth: string, comment: string) => void;
 }
 
 export function ToothStatusPanel({
@@ -34,7 +36,9 @@ export function ToothStatusPanel({
   planVersions,
   handleCreateVersion,
   handleDeleteVersion,
-  handleChangeVersion
+  handleChangeVersion,
+  toothComments = {},
+  onUpdateComment
 }: ToothStatusPanelProps) {
   return (
     <Card className="flex flex-col h-full">
@@ -75,6 +79,8 @@ export function ToothStatusPanel({
             className="h-full"
             customCosts={customCosts}
             setCustomCosts={setCustomCosts}
+            toothComments={toothComments}
+            onUpdateComment={onUpdateComment}
           />
         </div>
       </CardContent>

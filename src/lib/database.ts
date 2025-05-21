@@ -58,7 +58,9 @@ export type PlanTratamientoUpdate = Partial<PlanTratamientoCreate>;
 export interface PlanZona {
   id: string;
   plan_id: string;
+  version_id?: string;
   zona: string; // Puede ser un número de diente o "boca-completa", "arco-superior", "arco-inferior"
+  comentario?: string; // Campo para almacenar comentarios sobre el diente o zona
   created_at?: string;
 }
 

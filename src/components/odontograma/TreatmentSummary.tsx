@@ -26,6 +26,7 @@ interface TreatmentSummaryProps {
   setPlanVersions?: React.Dispatch<React.SetStateAction<PlanVersion[]>>;
   toast?: any;
   isPlanSaved?: boolean;
+  toothComments?: Record<string, string>;
 }
 
 export function TreatmentSummary({
@@ -44,8 +45,14 @@ export function TreatmentSummary({
   setToothStatus,
   setPlanVersions,
   toast,
-  isPlanSaved = false
+  isPlanSaved = false,
+  toothComments = {}
 }: TreatmentSummaryProps) {
+  
+  // Log para depuración
+  React.useEffect(() => {
+    console.log("TreatmentSummary - toothComments:", toothComments);
+  }, [toothComments]);
   
   // Función para eliminar completamente un diente y sus tratamientos/condiciones
   const clearToothCompletely = (tooth: string) => {
@@ -103,6 +110,7 @@ export function TreatmentSummary({
             onVersionChange={handleChangeVersion}
             customCosts={customCosts}
             isPlanSaved={isPlanSaved}
+            initialToothComments={toothComments}
           />
         </div>
       </CardHeader>

@@ -119,6 +119,7 @@ export default function EditTreatmentPlanPage() {
             planId: planId,
             planData: existingPlanData.plan,
             toothStatus: existingPlanData.toothStatus,
+            toothComments: existingPlanData.toothComments || {},
             versions: existingPlanData.versions || []
           }}
           isEditing={true}

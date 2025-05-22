@@ -113,7 +113,7 @@ export default function TreatmentReport({
 
   // Use useMemo to prevent unnecessary re-renders with empty comment objects
   const [toothComments, setToothComments] = useState<Record<string, string>>(
-    useMemo(() => initialToothComments || {}, [])
+    useMemo(() => initialToothComments || {}, [initialToothComments])
   )
   const [editingCommentTooth, setEditingCommentTooth] = useState<string | null>(null)
   const [currentComment, setCurrentComment] = useState("")

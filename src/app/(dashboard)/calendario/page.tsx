@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion } from "framer-motion"
@@ -43,7 +43,7 @@ export default function CalendarioPage() {
   const { toast } = useToast()
 
   // Load all data we need for the calendar
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
       
@@ -72,7 +72,7 @@ export default function CalendarioPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
   
   // Transform appointments to calendar data
   function transformAppointmentsToCalendarData(appointments: Appointment[]): CalendarDay[] {

@@ -9,14 +9,16 @@ import { twMerge } from "tailwind-merge";
 import { Heading } from "./Heading";
 import { socials } from "@/constants/socials";
 import { Badge } from "./Badge";
-import { IconLayoutSidebarRightCollapse, IconLogout, IconUser } from "@tabler/icons-react";
+import { IconLayoutSidebarRightCollapse, IconLogout, IconUser, IconChevronDown, IconBuilding } from "@tabler/icons-react";
 import { isMobile } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const Sidebar = () => {
   const [open, setOpen] = useState(isMobile() ? false : true);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { signOut } = useAuth();
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Manejar la animación manualmente sin depender de framer-motion
   useEffect(() => {
@@ -38,6 +40,20 @@ export const Sidebar = () => {
     }
   }, [open]);
 
+  // Cerrar el menú de usuario cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <>
       <div
@@ -53,25 +69,59 @@ export const Sidebar = () => {
           <SidebarHeader />
           <Navigation setOpen={setOpen} />
         </div>
-        <div className="space-y-3">
-          <Link
-            href="/mi-cuenta"
-            onClick={() => isMobile() && setOpen(false)}
-            className="w-full flex items-center space-x-2 py-2 px-3 text-slate-700 text-sm transition-colors"
+        <div className="relative" ref={userMenuRef}>
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="w-full flex items-center justify-between py-2 px-3 text-slate-700 text-sm transition-colors rounded-md hover:bg-white hover:shadow-sm"
           >
-            <IconUser className="h-4 w-4 flex-shrink-0" />
-            <span>Mi cuenta</span>
-          </Link>
-          <button 
-            onClick={() => {
-              signOut();
-              if (isMobile()) setOpen(false);
-            }}
-            className="w-full flex items-center space-x-2 py-2 px-3 text-red-700 text-sm transition-colors"
-          >
-            <IconLogout className="h-4 w-4 flex-shrink-0" />
-            <span>Cerrar sesión</span>
+            <div className="flex items-center space-x-2">
+              <IconUser className="h-4 w-4 flex-shrink-0" />
+              <span>Mi perfil</span>
+            </div>
+            <IconChevronDown 
+              className={`h-4 w-4 transition-transform ${userMenuOpen ? 'transform rotate-180' : ''}`} 
+            />
           </button>
+          
+          {userMenuOpen && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 bg-white rounded-md shadow-md py-1 border border-gray-100 min-w-[150px] w-[110%]">
+              <Link
+                href="/mi-cuenta"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  if (isMobile()) setOpen(false);
+                }}
+                className="w-full flex items-center space-x-2 py-2 px-3 text-slate-700 text-sm transition-colors hover:bg-neutral-100"
+              >
+                <IconUser className="h-4 w-4 flex-shrink-0" />
+                <span>Mi cuenta</span>
+              </Link>
+              
+              <Link
+                href="/mi-consultorio"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  if (isMobile()) setOpen(false);
+                }}
+                className="w-full flex items-center space-x-2 py-2 px-3 text-slate-700 text-sm transition-colors hover:bg-neutral-100"
+              >
+                <IconBuilding className="h-4 w-4 flex-shrink-0" />
+                <span>Mi consultorio</span>
+              </Link>
+              
+              <button 
+                onClick={() => {
+                  signOut();
+                  setUserMenuOpen(false);
+                  if (isMobile()) setOpen(false);
+                }}
+                className="w-full flex items-center space-x-2 py-2 px-3 text-red-700 text-sm transition-colors hover:bg-neutral-100"
+              >
+                <IconLogout className="h-4 w-4 flex-shrink-0" />
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <button

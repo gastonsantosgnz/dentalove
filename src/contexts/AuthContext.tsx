@@ -118,13 +118,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         (event, newSession) => {
           if (unmountedRef.current) return;
           
+          console.log('[AuthContext] Auth state change event:', event);
+          
           // Actualizar estado solo si el componente está montado
           setSession(newSession);
           setUser(newSession?.user ?? null);
           setIsLoading(false);
           
-          // Solo manejar evento SIGNED_IN para redirecciones
-          if (event === 'SIGNED_IN') {
+          // Solo manejar evento SIGNED_IN para redirecciones y creación de perfil
+          if (event === 'SIGNED_IN' && newSession?.user) {
+            // Crear perfil de usuario si es necesario
+            createUserProfileIfNew(newSession.user.id)
+              .then(() => {
+                // Luego manejar redirección
+                redirectIfNeeded(newSession);
+              })
+              .catch(err => {
+                console.error('[AuthContext] Error in profile creation during auth state change:', err);
+                // Continuar con la redirección incluso si hay error en la creación del perfil
+                redirectIfNeeded(newSession);
+              });
+          } else if (event === 'SIGNED_IN') {
             redirectIfNeeded(newSession);
           }
         }
@@ -180,6 +194,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(data.session);
         setUser(data.session.user);
         
+        // Verificar si es un nuevo usuario y crear perfil si es necesario
+        await createUserProfileIfNew(data.session.user.id);
+        
         // Establecer una cookie para evitar problemas con el middleware
         document.cookie = "skip_auth=true; path=/; max-age=60";
         
@@ -207,6 +224,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.href = '/login';
     } catch (e) {
       console.error('Redirect error after signout:', e);
+    }
+  };
+
+  // Crear un perfil de usuario vacío si es un usuario nuevo
+  const createUserProfileIfNew = async (userId: string) => {
+    console.log('[AuthContext] Checking if profile exists for user:', userId);
+    
+    try {
+      // Primero verificamos que el usuario exista en auth.users
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('[AuthContext] Error getting current user:', userError);
+        return;
+      }
+      
+      if (!userData?.user || userData.user.id !== userId) {
+        console.error('[AuthContext] User ID mismatch or user not found:', {
+          requestedId: userId,
+          currentUser: userData?.user?.id
+        });
+        return;
+      }
+      
+      // Verificar si ya existe un perfil para este usuario
+      const { data: existingProfile, error: queryError } = await supabase
+        .from('perfiles_usuario')
+        .select('id')
+        .eq('id', userId)
+        .single();
+      
+      // Si hay un error que no sea "no se encontraron registros", salir
+      if (queryError && queryError.code !== 'PGRST116') {
+        console.error('[AuthContext] Error checking profile:', queryError);
+        return;
+      }
+      
+      // Si ya existe un perfil, no hacer nada
+      if (existingProfile) {
+        console.log('[AuthContext] User profile already exists, skipping creation');
+        return;
+      }
+      
+      // Obtener información del usuario para el nombre por defecto
+      const userEmail = userData.user.email || '';
+      const defaultName = userEmail.split('@')[0] || 'Usuario';
+      
+      console.log('[AuthContext] Creating new user profile for:', userId);
+      
+      // Crear el perfil con ID y nombre
+      const { data, error } = await supabase
+        .from('perfiles_usuario')
+        .insert({
+          id: userId,
+          nombre: defaultName
+        })
+        .select();
+      
+      if (error) {
+        console.error('[AuthContext] Error creating user profile:', error);
+        console.log('[AuthContext] Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+      } else {
+        console.log('[AuthContext] Successfully created profile:', data);
+      }
+    } catch (error) {
+      console.error('[AuthContext] Unexpected error in createUserProfileIfNew:', error);
     }
   };
 

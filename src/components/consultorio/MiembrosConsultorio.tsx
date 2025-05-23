@@ -69,8 +69,8 @@ interface PerfilUsuario {
 }
 
 interface UsuarioWithPerfil {
-  email: string;
-  perfiles: PerfilUsuario[];
+  nombre: string;
+  apellido: string;
 }
 
 interface MiembroConsultorioRecord {
@@ -90,7 +90,10 @@ export function MiembrosConsultorio() {
   const [consultorios, setConsultorios] = useState<{ id: string, nombre: string, rol: string }[]>([]);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditRolDialogOpen, setIsEditRolDialogOpen] = useState(false);
   const [miembroParaEliminar, setMiembroParaEliminar] = useState<Miembro | null>(null);
+  const [miembroParaEditar, setMiembroParaEditar] = useState<Miembro | null>(null);
+  const [nuevoRol, setNuevoRol] = useState('');
   
   // Estado para el formulario de invitación
   const [invitacion, setInvitacion] = useState({
@@ -148,56 +151,132 @@ export function MiembrosConsultorio() {
   // Cargar miembros del consultorio seleccionado
   useEffect(() => {
     const cargarMiembros = async () => {
-      if (!consultorioSeleccionado) return;
+      if (!consultorioSeleccionado || !user) return;
       
       setLoading(true);
       
-      // Consulta para obtener los miembros del consultorio seleccionado
-      const { data, error } = await supabase
-        .from('usuarios_consultorios')
-        .select(`
-          id,
-          usuario_id,
-          rol,
-          activo,
-          usuarios:usuario_id(
-            email, 
-            perfiles:perfiles_usuario(nombre, apellido)
-          )
-        `)
-        .eq('consultorio_id', consultorioSeleccionado);
+      try {
+        // Consulta para obtener los miembros del consultorio seleccionado
+        const { data, error } = await supabase
+          .from('usuarios_consultorios')
+          .select(`
+            id,
+            usuario_id,
+            rol,
+            activo
+          `)
+          .eq('consultorio_id', consultorioSeleccionado)
+          .eq('activo', true);
+          
+        if (error) {
+          console.error('Error al cargar miembros básicos:', error);
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar los miembros del consultorio",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
         
-      if (error) {
-        console.error('Error al cargar miembros:', error);
+        // Si no hay miembros, establecer array vacío y terminar
+        if (!data || data.length === 0) {
+          setMiembros([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Para cada miembro, obtener sus datos de usuario en consultas separadas
+        const miembrosData: Miembro[] = [];
+        
+        for (const item of data) {
+          try {
+            let nombre = 'Usuario';
+            let email = 'Sin email';
+            
+            // Intentar obtener perfil del usuario
+            try {
+              const { data: perfilData } = await supabase
+                .from('perfiles_usuario')
+                .select('nombre, apellido')
+                .eq('id', item.usuario_id)
+                .single();
+                
+              if (perfilData) {
+                nombre = `${perfilData.nombre || ''} ${perfilData.apellido || ''}`.trim();
+                if (nombre === '') nombre = 'Usuario sin nombre';
+              }
+            } catch (perfilError) {
+              console.warn(`No se pudo obtener perfil para ${item.usuario_id}`);
+              // Continuamos aunque no tengamos el perfil
+            }
+            
+            // Intentar obtener email del usuario
+            try {
+              const { data: authUser } = await supabase.auth.getUser(item.usuario_id);
+              if (authUser && authUser.user) {
+                email = authUser.user.email || 'Sin email';
+              }
+            } catch (authError) {
+              console.warn(`No se pudo obtener email para ${item.usuario_id}`);
+              // Continuamos aunque no tengamos el email
+            }
+            
+            // Si no se pudo obtener el nombre ni el email, usar un identificador genérico
+            if (nombre === 'Usuario sin nombre' && email === 'Sin email') {
+              nombre = `Miembro #${item.usuario_id.substring(0, 8)}`;
+            }
+            
+            // Si es el usuario actual, asegurar que se muestre
+            if (item.usuario_id === user.id) {
+              if (email === 'Sin email') {
+                email = user.email || 'Sin email';
+              }
+              if (nombre === 'Usuario sin nombre') {
+                nombre = `Usuario (${user.email || 'Tú'})`;
+              }
+            }
+              
+            miembrosData.push({
+              id: item.id,
+              usuario_id: item.usuario_id,
+              email,
+              nombre: nombre || email,
+              rol: item.rol,
+              activo: item.activo
+            });
+          } catch (err) {
+            console.warn(`Error al procesar miembro ${item.usuario_id}:`, err);
+            
+            // Añadir el miembro de todas formas con datos genéricos
+            miembrosData.push({
+              id: item.id,
+              usuario_id: item.usuario_id,
+              email: 'Sin email',
+              nombre: `Miembro #${item.usuario_id.substring(0, 8)}`,
+              rol: item.rol,
+              activo: item.activo
+            });
+          }
+        }
+        
+        setMiembros(miembrosData);
+      } catch (err) {
+        console.error('Error inesperado al cargar miembros:', err);
         toast({
           title: "Error",
-          description: "No se pudieron cargar los miembros del consultorio",
+          description: "Ocurrió un error al cargar los miembros",
           variant: "destructive"
         });
+      } finally {
         setLoading(false);
-        return;
       }
-      
-      // Transformar datos
-      const miembrosData = (data as unknown as MiembroConsultorioRecord[]).map(item => ({
-        id: item.id,
-        usuario_id: item.usuario_id,
-        email: item.usuarios.email,
-        nombre: item.usuarios.perfiles?.[0]?.nombre 
-               ? `${item.usuarios.perfiles[0].nombre} ${item.usuarios.perfiles[0].apellido || ''}`.trim()
-               : 'Usuario sin nombre',
-        rol: item.rol,
-        activo: item.activo
-      }));
-      
-      setMiembros(miembrosData);
-      setLoading(false);
     };
     
     if (consultorioSeleccionado) {
       cargarMiembros();
     }
-  }, [consultorioSeleccionado, toast]);
+  }, [consultorioSeleccionado, toast, user]);
 
   const handleSelectConsultorio = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setConsultorioSeleccionado(e.target.value);
@@ -241,81 +320,142 @@ export function MiembrosConsultorio() {
       return;
     }
     
-    // Buscar si el usuario ya existe en la plataforma
-    const { data: usuarioExistente, error: errorBusqueda } = await supabase
-      .from('auth.users')
-      .select('id')
-      .eq('email', invitacion.email)
-      .single();
-    
-    if (errorBusqueda && errorBusqueda.code !== 'PGRST116') {
-      console.error('Error al buscar usuario:', errorBusqueda);
+    try {
+      // Buscar si el usuario ya existe en la plataforma usando la API de auth
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error al buscar usuarios:', authError);
+        toast({
+          title: "Error",
+          description: "Error al procesar la invitación",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Buscar el usuario por email
+      const usuarioExistente = authData?.users?.find(u => u.email === invitacion.email);
+      
+      // TODO: Implementar envío de email de invitación si el usuario no existe
+      if (!usuarioExistente) {
+        toast({
+          title: "Usuario no encontrado",
+          description: "El correo electrónico no está registrado en la plataforma. Se enviará una invitación por email (funcionalidad pendiente).",
+        });
+        setIsInviteDialogOpen(false);
+        return;
+      }
+      
+      // Verificar si el usuario ya es miembro del consultorio
+      const { data: miembroExistente } = await supabase
+        .from('usuarios_consultorios')
+        .select('id')
+        .eq('consultorio_id', consultorioSeleccionado)
+        .eq('usuario_id', usuarioExistente.id);
+      
+      if (miembroExistente && miembroExistente.length > 0) {
+        toast({
+          title: "Usuario ya es miembro",
+          description: "Este usuario ya es miembro del consultorio",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Agregar usuario al consultorio
+      const { error } = await supabase
+        .from('usuarios_consultorios')
+        .insert({
+          usuario_id: usuarioExistente.id,
+          consultorio_id: consultorioSeleccionado,
+          rol: invitacion.rol,
+          activo: true
+        });
+      
+      if (error) {
+        console.error('Error al agregar miembro:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo agregar al miembro al consultorio",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Miembro agregado",
+          description: "Se ha agregado al miembro al consultorio exitosamente"
+        });
+        
+        // Recargar miembros
+        setIsInviteDialogOpen(false);
+        setInvitacion({ email: '', rol: 'doctor' });
+        
+        // Agregar el nuevo miembro a la lista
+        setMiembros(prev => [
+          ...prev,
+          {
+            id: Date.now().toString(), // Temporal hasta recargar
+            usuario_id: usuarioExistente.id,
+            email: usuarioExistente.email || invitacion.email,
+            nombre: usuarioExistente.user_metadata?.nombre || usuarioExistente.email || invitacion.email,
+            rol: invitacion.rol,
+            activo: true
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error general al invitar:', error);
       toast({
         title: "Error",
-        description: "Error al procesar la invitación",
+        description: "Ocurrió un error al procesar la invitación",
         variant: "destructive"
       });
-      return;
     }
+  };
+
+  // Función para actualizar el rol de un miembro
+  const handleEditRol = async () => {
+    if (!miembroParaEditar || !nuevoRol) return;
     
-    // TODO: Implementar envío de email de invitación si el usuario no existe
-    if (!usuarioExistente) {
+    // Verificar si el usuario actual es admin
+    const userConsultorio = consultorios.find(c => c.id === consultorioSeleccionado);
+    if (userConsultorio?.rol !== 'admin') {
       toast({
-        title: "Usuario no encontrado",
-        description: "El correo electrónico no está registrado en la plataforma. Se enviará una invitación por email (funcionalidad pendiente).",
-      });
-      setIsInviteDialogOpen(false);
-      return;
-    }
-    
-    // Verificar si el usuario ya es miembro del consultorio
-    const { data: miembroExistente } = await supabase
-      .from('usuarios_consultorios')
-      .select('id')
-      .eq('consultorio_id', consultorioSeleccionado)
-      .eq('usuario_id', usuarioExistente.id);
-    
-    if (miembroExistente && miembroExistente.length > 0) {
-      toast({
-        title: "Usuario ya es miembro",
-        description: "Este usuario ya es miembro del consultorio",
+        title: "Acceso denegado",
+        description: "Solo administradores pueden cambiar roles",
         variant: "destructive"
       });
+      setIsEditRolDialogOpen(false);
       return;
     }
     
-    // Agregar usuario al consultorio
     const { error } = await supabase
       .from('usuarios_consultorios')
-      .insert({
-        usuario_id: usuarioExistente.id,
-        consultorio_id: consultorioSeleccionado,
-        rol: invitacion.rol,
-        activo: true
-      });
+      .update({ rol: nuevoRol })
+      .eq('id', miembroParaEditar.id);
     
     if (error) {
-      console.error('Error al agregar miembro:', error);
+      console.error('Error al actualizar rol:', error);
       toast({
         title: "Error",
-        description: "No se pudo agregar al miembro al consultorio",
+        description: "No se pudo actualizar el rol del miembro",
         variant: "destructive"
       });
     } else {
       toast({
-        title: "Miembro agregado",
-        description: "Se ha agregado al miembro al consultorio exitosamente"
+        title: "Rol actualizado",
+        description: "Se ha actualizado el rol del miembro exitosamente"
       });
       
-      // Recargar miembros
-      setIsInviteDialogOpen(false);
-      setInvitacion({ email: '', rol: 'doctor' });
-      
-      // Simular cambio de consultorio para forzar recarga
-      const tempId = consultorioSeleccionado;
-      setConsultorioSeleccionado('');
-      setTimeout(() => setConsultorioSeleccionado(tempId), 100);
+      // Actualizar lista de miembros
+      setMiembros(prev => prev.map(m => 
+        m.id === miembroParaEditar.id ? {...m, rol: nuevoRol} : m
+      ));
     }
+    
+    setIsEditRolDialogOpen(false);
+    setMiembroParaEditar(null);
+    setNuevoRol('');
   };
 
   const handleDeleteMember = async () => {
@@ -454,34 +594,52 @@ export function MiembrosConsultorio() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
-                  {esAdmin && <TableHead className="w-[100px]">Acciones</TableHead>}
+                  {esAdmin && <TableHead className="w-[150px]">Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {miembros.map(miembro => (
                   <TableRow key={miembro.id}>
-                    <TableCell className="font-medium">{miembro.nombre}</TableCell>
+                    <TableCell className="font-medium">
+                      {miembro.nombre}
+                      {miembro.usuario_id === user?.id && (
+                        <span className="ml-1 text-sm text-muted-foreground italic">(Tú)</span>
+                      )}
+                    </TableCell>
                     <TableCell>{miembro.email}</TableCell>
                     <TableCell className="capitalize">{miembro.rol}</TableCell>
-                    {esAdmin && miembro.usuario_id !== user?.id && (
+                    {esAdmin && (
                       <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => {
-                            setMiembroParaEliminar(miembro);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
-                          <IconTrash className="h-4 w-4" />
-                          <span className="sr-only">Eliminar</span>
-                        </Button>
-                      </TableCell>
-                    )}
-                    {esAdmin && miembro.usuario_id === user?.id && (
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground italic">Tú</span>
+                        <div className="flex space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="text-blue-500"
+                            onClick={() => {
+                              setMiembroParaEditar(miembro);
+                              setNuevoRol(miembro.rol);
+                              setIsEditRolDialogOpen(true);
+                            }}
+                          >
+                            <IconUserPlus className="h-4 w-4" />
+                            <span className="sr-only">Editar rol</span>
+                          </Button>
+                          
+                          {miembro.usuario_id !== user?.id && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() => {
+                                setMiembroParaEliminar(miembro);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                            >
+                              <IconTrash className="h-4 w-4" />
+                              <span className="sr-only">Eliminar</span>
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -542,6 +700,53 @@ export function MiembrosConsultorio() {
               <Button type="submit">Invitar</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para editar rol */}
+      <Dialog open={isEditRolDialogOpen} onOpenChange={setIsEditRolDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar rol de miembro</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <p className="text-sm font-medium">
+                Miembro: <span className="font-bold">{miembroParaEditar?.nombre}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">{miembroParaEditar?.email}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="rol">Nuevo rol</Label>
+              <Select 
+                value={nuevoRol} 
+                onValueChange={setNuevoRol}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="doctor">Doctor</SelectItem>
+                  <SelectItem value="asistente">Asistente</SelectItem>
+                  <SelectItem value="recepcionista">Recepcionista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <DialogFooter className="pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsEditRolDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleEditRol}>Guardar cambios</Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

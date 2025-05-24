@@ -17,6 +17,7 @@ export interface Paciente {
   fecha_nacimiento: string;
   celular?: string | null;
   notas?: string | null;
+  consultorio_id: string;
   created_at?: string;
   updated_at?: string;
 }

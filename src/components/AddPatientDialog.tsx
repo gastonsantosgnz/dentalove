@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Paciente, PacienteCreate } from "@/lib/database";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Función para calcular el tipo de paciente según la edad
 export function getPatientType(birthDate: string): "Adulto" | "Pediátrico" | "Adolescente" {
@@ -54,7 +57,9 @@ interface AddPatientDialogProps {
 }
 
 export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }: AddPatientDialogProps) {
+  const { user } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
+  const [consultorioId, setConsultorioId] = useState<string | null>(null);
   
   // Use either external or internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -65,8 +70,50 @@ export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }:
     }
   };
   
-  const [date, setDate] = useState<Date>();
-  const [displayDate, setDisplayDate] = useState('');
+  // Date state
+  const [selectedDay, setSelectedDay] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  
+  // Create arrays for days, months, and years
+  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const months = [
+    { value: "01", label: "Enero" },
+    { value: "02", label: "Febrero" },
+    { value: "03", label: "Marzo" },
+    { value: "04", label: "Abril" },
+    { value: "05", label: "Mayo" },
+    { value: "06", label: "Junio" },
+    { value: "07", label: "Julio" },
+    { value: "08", label: "Agosto" },
+    { value: "09", label: "Septiembre" },
+    { value: "10", label: "Octubre" },
+    { value: "11", label: "Noviembre" },
+    { value: "12", label: "Diciembre" }
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => (currentYear - i).toString());
+  
+  // Function to check if the date is valid
+  const isValidDate = () => {
+    if (!selectedDay || !selectedMonth || !selectedYear) return false;
+    
+    const date = new Date(`${selectedYear}-${selectedMonth}-${selectedDay}`);
+    return !isNaN(date.getTime()) && 
+      date.getDate() === parseInt(selectedDay, 10) && 
+      date.getMonth() === parseInt(selectedMonth, 10) - 1;
+  };
+  
+  // Get date object from selections
+  const getDateFromSelections = (): Date | null => {
+    if (!selectedDay || !selectedMonth || !selectedYear) return null;
+    
+    const dateStr = `${selectedYear}-${selectedMonth}-${selectedDay}`;
+    const date = new Date(dateStr);
+    
+    if (isNaN(date.getTime())) return null;
+    return date;
+  };
   
   const [formData, setFormData] = useState({
     nombre_completo: "",
@@ -74,63 +121,80 @@ export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }:
     notas: ""
   });
 
+  // Fetch the user's consultorio_id when dialog opens
+  const fetchConsultorioId = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('usuarios_consultorios')
+        .select(`
+          consultorio_id
+        `)
+        .eq('usuario_id', user.id)
+        .eq('activo', true)
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching consultorio_id:', error);
+        return;
+      }
+      
+      if (data) {
+        setConsultorioId(data.consultorio_id);
+      }
+    } catch (error) {
+      console.error('Error fetching consultorio_id:', error);
+    }
+  }, [user]);
+
+  // Call fetchConsultorioId when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchConsultorioId();
+    }
+  }, [open, user, fetchConsultorioId]);
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        nombre_completo: "",
+        celular: "",
+        notas: ""
+      });
+      setSelectedDay("");
+      setSelectedMonth("");
+      setSelectedYear("");
+    }
+  }, [open]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    
-    if (e.target.type === 'date') {
-      // Si es el input nativo de tipo fecha (YYYY-MM-DD)
-      if (value) {
-        const dateObj = new Date(value);
-        setDate(dateObj);
-        setDisplayDate(formatDateForDisplay(value));
-      } else {
-        setDate(undefined);
-        setDisplayDate('');
-      }
-    } else {
-      // Si es el input de texto (DD/MM/YYYY)
-      setDisplayDate(value);
-      
-      // Validar formato DD/MM/YYYY con regex
-      const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-      const match = value.match(dateRegex);
-      
-      if (match) {
-        const [_, day, month, year] = match;
-        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        const dateObj = new Date(isoDate);
-        
-        // Verificar que la fecha sea válida
-        if (!isNaN(dateObj.getTime())) {
-          setDate(dateObj);
-        }
-      } else if (!value) {
-        setDate(undefined);
-      }
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nombre_completo || !date) {
-      // Aquí podrías manejar errores o validación
+    const dateObj = getDateFromSelections();
+    
+    if (!formData.nombre_completo || !dateObj || !consultorioId) {
+      // Show error or validation message
+      console.error("Missing required fields or consultorio_id");
       return;
     }
     
-    const birthDate = date.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    const birthDate = dateObj.toISOString().split('T')[0]; // Format YYYY-MM-DD
     
     const patientData: PacienteCreate = {
       ...formData,
-      fecha_nacimiento: birthDate
+      fecha_nacimiento: birthDate,
+      consultorio_id: consultorioId
     };
     
-    // Llamar al callback proporcionado para guardar en Supabase
+    // Call the callback provided to save to Supabase
     // Check if the callback expects a parameter
     if (onSubmit.length > 0) {
       (onSubmit as (data: PacienteCreate) => void)(patientData);
@@ -138,15 +202,16 @@ export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }:
       (onSubmit as () => void)();
     }
     
-    // Cerrar el diálogo y reiniciar el formulario
+    // Close the dialog and reset the form
     setOpen(false);
     setFormData({
       nombre_completo: "",
       celular: "",
       notas: ""
     });
-    setDate(undefined);
-    setDisplayDate('');
+    setSelectedDay("");
+    setSelectedMonth("");
+    setSelectedYear("");
   };
 
   // Manejador para abrir el diálogo
@@ -199,23 +264,47 @@ export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }:
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="fecha_nacimiento" className="text-right">
+              <Label className="text-right">
                 Fecha de Nacimiento
               </Label>
-              <Input
-                id="fecha_nacimiento"
-                placeholder="DD/MM/YYYY"
-                className="col-span-3"
-                value={displayDate}
-                onChange={handleDateChange}
-                required
-              />
-              <Input 
-                type="date" 
-                className="hidden" 
-                value={date ? date.toISOString().split('T')[0] : ''}
-                onChange={handleDateChange}
-              />
+              <div className="col-span-3 grid grid-cols-3 gap-2">
+                <Select value={selectedDay} onValueChange={setSelectedDay}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Día" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {days.map(day => (
+                      <SelectItem key={day} value={day}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Mes" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {months.map(month => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Año" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {years.map(year => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="celular" className="text-right">
@@ -246,7 +335,13 @@ export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }:
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white">Guardar Paciente</Button>
+            <Button 
+              type="submit" 
+              className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white"
+              disabled={!formData.nombre_completo || !selectedDay || !selectedMonth || !selectedYear}
+            >
+              Guardar Paciente
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

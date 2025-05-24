@@ -45,9 +45,13 @@ export function EditPatientDialog({
     e.preventDefault();
     
     try {
-      const updatedPaciente = {
+      const updatedPaciente: Paciente = {
         id: patient.id,
-        ...formData
+        consultorio_id: patient.consultorio_id,
+        nombre_completo: formData.nombre_completo,
+        fecha_nacimiento: formData.fecha_nacimiento,
+        celular: formData.celular || null,
+        notas: formData.notas || null
       };
       
       // Close dialog and update data
@@ -59,7 +63,7 @@ export function EditPatientDialog({
       console.error("Error al actualizar paciente:", error);
       onOpenChange(false);
     }
-  }, [formData, patient.id, onOpenChange, onPatientUpdated]);
+  }, [formData, patient.id, patient.consultorio_id, onOpenChange, onPatientUpdated]);
 
   return (
     <Dialog 

@@ -81,7 +81,7 @@ export default function TreatmentPlanDetailsPage() {
         setVersions(planVersions);
         
         // Set active version
-        const activeVer = planVersions.find(v => v.activa) || planVersions[0];
+        const activeVer = planVersions.find((v: PlanVersion) => v.activa) || planVersions[0];
         setActiveVersionState(activeVer);
         
         // Load patient data from Supabase

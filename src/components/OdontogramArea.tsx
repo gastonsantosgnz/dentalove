@@ -12,6 +12,7 @@ import { saveCompletePlanTratamiento } from "@/lib/planesTratamientoService"
 import { Check, X, Loader2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { useConsultorio } from "@/contexts/ConsultorioContext"
 
 // Import the refactored components
 import {
@@ -53,6 +54,9 @@ export default function OdontogramArea({
 }: OdontogramAreaProps) {
   // Añadimos toast para notificaciones
   const { toast } = useToast();
+  
+  // Obtener el consultorio actual del usuario
+  const { consultorio } = useConsultorio();
   
   // Estados para el feedback del guardado
   const [isSaving, setIsSaving] = useState(false);
@@ -470,8 +474,14 @@ export default function OdontogramArea({
         fecha: existingPlan ? existingPlan.planData.fecha : new Date().toISOString(),
         observaciones: existingPlan ? existingPlan.planData.observaciones : "",
         costo_total: totalCost,
-        toothComments: toothComments // Incluir los comentarios de dientes
+        toothComments: toothComments, // Incluir los comentarios de dientes
+        consultorio_id: consultorio?.id // Incluir el ID del consultorio
       };
+      
+      // Si no hay consultorio asignado, mostrar un error
+      if (!planData.consultorio_id) {
+        console.warn("No hay consultorio_id disponible para guardar el plan");
+      }
       
       const { plan, planId } = await saveCompletePlanTratamiento(
         planData, 
@@ -501,11 +511,6 @@ export default function OdontogramArea({
         onPlanSaved();
       }
       
-      // Resetear el estado después de 5 segundos
-      setTimeout(() => {
-        setSaveStatus("idle");
-      }, 5000);
-
       // Actualizar el estado del plan guardado
       setSavedPlanId(planId);
       setIsPlanModified(false);
@@ -513,20 +518,21 @@ export default function OdontogramArea({
       console.error(isEditing ? "Error al actualizar el plan:" : "Error al guardar el plan:", error);
       setSaveStatus("error");
       
+      // Mostrar mensaje de error más específico
+      let errorMessage = "Ocurrió un error. Intente nuevamente.";
+      if ((error as any)?.message?.includes('consultorio_id')) {
+        errorMessage = "Error: No se pudo asignar el consultorio al plan. Verifique que esté asignado a un consultorio.";
+      }
+      
       toast({
         title: isEditing ? "Error al actualizar" : "Error al guardar",
-        description: "Ocurrió un error. Intente nuevamente.",
+        description: errorMessage,
         variant: "destructive"
       });
-      
-      // Resetear el estado después de 3 segundos
-      setTimeout(() => {
-        setSaveStatus("idle");
-      }, 3000);
     } finally {
       setIsSaving(false);
     }
-  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments, savedPlanId]);
+  }, [pacienteId, toothStatus, treatmentsByTooth, totalCost, toast, onPlanSaved, planVersions, activeVersion, customCosts, isEditing, existingPlan, toothComments, savedPlanId, consultorio]);
 
   return (
     <motion.div 
@@ -653,7 +659,7 @@ export default function OdontogramArea({
         customCosts={customCosts}
         handleChangeVersion={handleChangeVersion}
         handleUpdateStatus={handleUpdateStatus}
-        isPlanSaved={saveStatus === "success" || isEditing}
+        isPlanSaved={savedPlanId !== undefined || isEditing}
         toothComments={toothComments}
       />
     </motion.div>

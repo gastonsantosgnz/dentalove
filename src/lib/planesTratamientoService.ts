@@ -417,6 +417,7 @@ export async function saveCompletePlanTratamiento(
     observaciones: string;
     costo_total: number;
     toothComments?: Record<string, string>;
+    consultorio_id?: string;
   },
   toothStatus: Record<string, ToothStatus[]>,
   versiones?: Array<{
@@ -435,6 +436,24 @@ export async function saveCompletePlanTratamiento(
   // Objeto para almacenar los estados de progreso de servicios existentes
   let serviciosProgresoExistentes: Record<string, any> = {};
 
+  // Get consultorio_id from the context if not provided
+  if (!planData.consultorio_id) {
+    try {
+      // Intentar obtener del localStorage
+      if (typeof window !== 'undefined') {
+        const cachedData = localStorage.getItem('userConsultorio');
+        if (cachedData) {
+          const parsedData = JSON.parse(cachedData);
+          if (parsedData.consultorio && parsedData.consultorio.id) {
+            planData.consultorio_id = parsedData.consultorio.id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error getting consultorio_id from cache:', error);
+    }
+  }
+
   // Determinar si estamos creando un nuevo plan o actualizando uno existente
   if (existingPlanId) {
     // Actualizar plan existente
@@ -445,6 +464,7 @@ export async function saveCompletePlanTratamiento(
         fecha: planData.fecha,
         observaciones: planData.observaciones,
         costo_total: planData.costo_total,
+        consultorio_id: planData.consultorio_id,
       })
       .eq('id', existingPlanId)
       .select('id')
@@ -527,6 +547,7 @@ export async function saveCompletePlanTratamiento(
         fecha: planData.fecha,
         observaciones: planData.observaciones,
         costo_total: planData.costo_total,
+        consultorio_id: planData.consultorio_id,
       })
       .select('id')
       .single();
@@ -554,7 +575,8 @@ export async function saveCompletePlanTratamiento(
           plan_id: planId,
           nombre: version.nombre,
           activa: version.isActive,
-          costo_total: version.totalCost
+          costo_total: version.totalCost,
+          consultorio_id: planData.consultorio_id,
         })
         .select('id')
         .single();
@@ -664,7 +686,8 @@ export async function saveCompletePlanTratamiento(
         plan_id: planId,
         nombre: 'Versión 1',
         activa: true,
-        costo_total: planData.costo_total
+        costo_total: planData.costo_total,
+        consultorio_id: planData.consultorio_id,
       })
       .select('id')
       .single();

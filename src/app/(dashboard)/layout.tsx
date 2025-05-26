@@ -1,18 +1,30 @@
 "use client";
 
-import { Sidebar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/toaster";
 import { usePathname } from "next/navigation";
-import { twMerge } from "tailwind-merge";
-import { useEffect } from "react";
+import { useEffect, memo } from "react";
 import { ServiciosProvider } from "@/contexts/ServiciosContext";
+import { ConsultorioProvider } from "@/contexts/ConsultorioContext";
+import dynamic from 'next/dynamic';
 
-export default function DashboardLayout({
+// Dynamic import for Sidebar to reduce initial load time
+const Sidebar = dynamic(
+  () => import('@/components/Sidebar').then(mod => ({ default: mod.Sidebar })),
+  { ssr: false, loading: () => <SidebarSkeleton /> }
+);
+
+// Simple skeleton for Sidebar
+const SidebarSkeleton = () => (
+  <div className="w-14 lg:w-56 h-screen bg-neutral-100 animate-pulse"></div>
+);
+
+// Memoized dashboard layout component
+const DashboardLayout = memo(({
   children,
 }: {
   children: React.ReactNode;
-}) {
+}) => {
   const pathname = usePathname();
   
   // Limpiar elementos residuales al cambiar de ruta
@@ -47,18 +59,24 @@ export default function DashboardLayout({
   
   return (
     <ServiciosProvider>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <div className="lg:pt-2 bg-gray-100 flex-1 overflow-y-auto lg:pl-2">
-          <div className="flex-1 bg-white rounded-tl-2xl min-h-full overflow-hidden flex flex-col lg:rounded-tl-2xl">
-            <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-              {children}
-            </main>
-            <Footer />
+      <ConsultorioProvider>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar />
+          <div className="lg:pt-2 bg-gray-100 flex-1 overflow-y-auto lg:pl-2">
+            <div className="flex-1 bg-white rounded-tl-2xl min-h-full overflow-hidden flex flex-col lg:rounded-tl-2xl">
+              <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+                {children}
+              </main>
+              <Footer />
+            </div>
           </div>
+          <Toaster />
         </div>
-        <Toaster />
-      </div>
+      </ConsultorioProvider>
     </ServiciosProvider>
   );
-} 
+});
+
+DashboardLayout.displayName = 'DashboardLayout';
+
+export default DashboardLayout; 

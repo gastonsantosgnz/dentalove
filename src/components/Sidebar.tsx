@@ -4,7 +4,7 @@ import { Navlink } from "@/types/navlink";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, memo, useMemo, useCallback } from "react";
 import { twMerge } from "tailwind-merge";
 import { Heading } from "./Heading";
 import { socials } from "@/constants/socials";
@@ -12,8 +12,10 @@ import { Badge } from "./Badge";
 import { IconLayoutSidebarRightCollapse, IconLogout, IconUser, IconChevronDown, IconBuilding } from "@tabler/icons-react";
 import { isMobile } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConsultorio } from "@/contexts/ConsultorioContext";
 
-export const Sidebar = () => {
+// Export the Sidebar component to make it work with dynamic imports
+const Sidebar = memo(() => {
   const [open, setOpen] = useState(isMobile() ? false : true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { signOut } = useAuth();
@@ -132,38 +134,50 @@ export const Sidebar = () => {
       </button>
     </>
   );
-};
+});
 
-export const Navigation = ({
+Sidebar.displayName = 'Sidebar';
+
+// Export as both named and default export for compatibility
+export { Sidebar };
+export default Sidebar;
+
+const Navigation = memo(({
   setOpen,
 }: {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   const pathname = usePathname();
 
-  const isActive = (href: string) => pathname === href;
+  // Envolver isActive en un useCallback para evitar que cambie en cada renderizado
+  const isActive = useCallback((href: string) => pathname === href, [pathname]);
+  
+  // Memoizar los enlaces para evitar recálculos
+  const navElements = useMemo(() => {
+    return navlinks.map((link: Navlink) => (
+      <Link
+        key={link.href}
+        href={link.href}
+        onClick={() => isMobile() && setOpen(false)}
+        className={twMerge(
+          "text-slate-700 hover:text-primary transition duration-200 flex items-center space-x-2 py-2 px-2 rounded-md text-sm",
+          isActive(link.href) && "bg-white shadow-lg text-primary"
+        )}
+      >
+        <link.icon
+          className={twMerge(
+            "h-4 w-4 flex-shrink-0",
+            isActive(link.href) && "text-sky-500"
+          )}
+        />
+        <span>{link.label}</span>
+      </Link>
+    ));
+  }, [setOpen, isActive]);
 
   return (
     <div className="flex flex-col space-y-1 my-10 relative z-[100]">
-      {navlinks.map((link: Navlink) => (
-        <Link
-          key={link.href}
-          href={link.href}
-          onClick={() => isMobile() && setOpen(false)}
-          className={twMerge(
-            "text-slate-700 hover:text-primary transition duration-200 flex items-center space-x-2 py-2 px-2 rounded-md text-sm",
-            isActive(link.href) && "bg-white shadow-lg text-primary"
-          )}
-        >
-          <link.icon
-            className={twMerge(
-              "h-4 w-4 flex-shrink-0",
-              isActive(link.href) && "text-sky-500"
-            )}
-          />
-          <span>{link.label}</span>
-        </Link>
-      ))}
+      {navElements}
 
       {/* Socials section - hidden for now */}
       <div className="hidden">
@@ -190,15 +204,49 @@ export const Navigation = ({
       </div>
     </div>
   );
-};
+});
 
-const SidebarHeader = () => {
+Navigation.displayName = 'Navigation';
+
+const SidebarHeader = memo(() => {
+  const { consultorio } = useConsultorio();
+  const [imageError, setImageError] = useState(false);
+
+  if (consultorio) {
+    return (
+      <div className="flex items-center space-x-2">
+        {consultorio.logo && !imageError ? (
+          <div className="relative h-6 w-6 overflow-hidden rounded-md">
+            <Image 
+              src={consultorio.logo} 
+              alt={consultorio.nombre}
+              fill
+              loading="lazy"
+              sizes="24px"
+              className="object-cover"
+              onError={() => setImageError(true)}
+            />
+          </div>
+        ) : (
+          <div className="h-6 w-6 bg-primary/10 flex items-center justify-center rounded-md">
+            <IconBuilding className="h-3 w-3 text-primary" />
+          </div>
+        )}
+        <div className="flex flex-col">
+          <p className="font-bold text-primary text-base">{consultorio.nombre}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex">
-      <div className="flex text-sm flex-col">
-        <p className="font-bold text-primary">Dentalove</p>
+      <div className="flex flex-col">
+        <p className="font-bold text-primary text-base">Dentalove</p>
         <p className="font-light text-slate-600">Planes Dentales</p>
       </div>
     </div>
   );
-};
+});
+
+SidebarHeader.displayName = 'SidebarHeader';

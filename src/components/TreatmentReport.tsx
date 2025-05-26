@@ -18,6 +18,8 @@ import { ToothStatus } from "./DentalChart"
 import { Servicio } from "./ToothStatus"
 import { useToast } from "@/components/ui/use-toast"
 import { Label } from "@/components/ui/label"
+import { useConsultorio } from "@/contexts/ConsultorioContext"
+import Image from "next/image"
 
 // Función para formatear cantidades con separadores de miles sin decimales
 const formatNumberWithCommas = (amount: number): string => {
@@ -67,6 +69,7 @@ export default function TreatmentReport({
 }: TreatmentReportProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const { consultorio } = useConsultorio()
   const currentDate = new Date().toLocaleDateString("es-ES", {
     year: "numeric",
     month: "long",
@@ -90,27 +93,6 @@ export default function TreatmentReport({
     return selectedVersion ? selectedVersion.toothStatus : toothStatus;
   }, [toothStatus, planVersions, selectedVersionId]);
   
-  const initialObservation = () => {
-    const conditionCount = Object.entries(toothStatus)
-      .filter(([key]) => !isGeneralAreaKey(key))
-      .reduce((count, [_, statuses]) => count + (statuses?.filter(s => s.type === "condition").length ?? 0), 0);
-    
-    const generalTreatmentCount = Object.entries(toothStatus)
-       .filter(([key]) => isGeneralAreaKey(key))
-       .reduce((count, [_, statuses]) => count + (statuses?.filter(s => s.type === "treatment").length ?? 0), 0);
-
-    let observationText = "";
-    if (conditionCount > 0) {
-      observationText += `El paciente presenta ${conditionCount} dientes con condiciones que requieren atención. `;
-    }
-    if (generalTreatmentCount > 0) {
-        observationText += `Se han registrado ${generalTreatmentCount} tratamientos generales. `;
-    }
-    observationText += "Se recomienda seguir el plan de tratamiento detallado.";
-    return observationText.trim();
-  }
-  const [observations, setObservations] = useState(initialObservation())
-
   // Use useMemo to prevent unnecessary re-renders with empty comment objects
   const [toothComments, setToothComments] = useState<Record<string, string>>(
     useMemo(() => initialToothComments || {}, [initialToothComments])
@@ -245,7 +227,7 @@ export default function TreatmentReport({
     if (reportContent) {
       const printWindow = window.open("", "_blank");
       if (printWindow) {
-        const planContent = document.querySelector('[data-value="plan"] .space-y-4');
+        const planContent = document.querySelector('[data-value="plan"]');
         const planHtml = planContent ? (planContent as HTMLElement).outerHTML : '';
         
         const tailwindCssUrl = "https://cdn.tailwindcss.com"; 
@@ -293,6 +275,18 @@ export default function TreatmentReport({
                   font-size: 0.9em;
                 }
                 
+                .logo-container {
+                  display: flex;
+                  align-items: center;
+                  gap: 10px;
+                }
+                
+                .logo-image {
+                  max-height: 50px;
+                  max-width: 80px;
+                  object-fit: contain;
+                }
+                
                 @media print {
                   .no-print { display: none; }
                   
@@ -307,9 +301,15 @@ export default function TreatmentReport({
               <div class="print-page">
                 <div class="print-container">
                   <div class="report-header">
-                    <div>
-                      <h3 class="text-lg font-bold">Dentalove</h3>
-                      <p class="text-sm text-muted-foreground">Reporte generado el ${currentDate}</p>
+                    <div class="logo-container">
+                      ${consultorio && consultorio.logo ? 
+                        `<img src="${consultorio.logo}" alt="${consultorio.nombre || 'Consultorio'}" class="logo-image" onerror="this.style.display='none'" />` : 
+                        ''
+                      }
+                      <div>
+                        <h3 class="text-lg font-bold">${consultorio ? consultorio.nombre : 'Dentalove'}</h3>
+                        <p class="text-sm text-muted-foreground">Reporte generado el ${currentDate}</p>
+                      </div>
                     </div>
                     <div style="text-align: right;">
                       <h3 class="text-lg font-bold">Paciente: ${patientName}</h3>
@@ -323,9 +323,15 @@ export default function TreatmentReport({
                   
                   <div class="treatment-copy second-copy">
                     <div class="report-header">
-                      <div>
-                        <h3 class="text-lg font-bold">Dentalove</h3>
-                        <p class="text-sm text-muted-foreground">Reporte generado el ${currentDate}</p>
+                      <div class="logo-container">
+                        ${consultorio && consultorio.logo ? 
+                          `<img src="${consultorio.logo}" alt="${consultorio.nombre || 'Consultorio'}" class="logo-image" onerror="this.style.display='none'" />` : 
+                          ''
+                        }
+                        <div>
+                          <h3 class="text-lg font-bold">${consultorio ? consultorio.nombre : 'Dentalove'}</h3>
+                          <p class="text-sm text-muted-foreground">Reporte generado el ${currentDate}</p>
+                        </div>
                       </div>
                       <div style="text-align: right;">
                         <h3 class="text-lg font-bold">Paciente: ${patientName}</h3>
@@ -357,46 +363,48 @@ export default function TreatmentReport({
   }
   
   const handleCopyToClipboard = () => {
-    let text = `Reporte Dental - Dentalove\nPaciente: ${patientName}\nFecha: ${currentDate}\n\n`;
+    let text = `Reporte Dental - ${consultorio ? consultorio.nombre : 'Dentalove'}\nPaciente: ${patientName}\nFecha: ${currentDate}\n\n`;
 
-    text += "== DIAGNÓSTICO ==\n";
-    if (hasConditions) {
-        Object.entries(toothStatus)
-            .filter(([key, statuses]) => !isGeneralAreaKey(key) && statuses?.some(s => s.type === "condition"))
-            .forEach(([tooth, statuses]) => {
-                text += `\nDiente ${tooth} (${getToothInfo(tooth).name}):\n`;
-                statuses?.filter(s => s.type === "condition").forEach(status => {
-                    text += `- ${status.status}\n`;
-                });
-                if (toothComments[tooth]) {
-                    text += `  Comentario: ${toothComments[tooth]}\n`;
-                }
-            });
-    } else {
-        text += "No se han registrado condiciones dentales específicas.\n";
-    }
-    text += `\nObservaciones Generales:\n${observations}\n`;
-
-    text += "\n== PLAN DE TRATAMIENTO ==\n";
+    // Ahora combinamos diagnóstico y plan de tratamiento en una sola sección
+    text += "== PLAN DE TRATAMIENTO ==\n";
+    
+    // Primero añadimos los tratamientos
+    text += "\nTratamientos:\n";
     if (hasGeneralTreatments) {
-        text += "\nTratamientos Generales:\n";
-        Object.entries(generalAreaTreatments).forEach(([treatment, data]) => {
-            const cost = getServiceCost(data.servicio_id, treatment);
-            text += `- ${treatment} (Aplicación: ${data.areas.map(getAreaName).join(", ")}) - \$${formatNumberWithCommas(cost)}\n`;
-        });
+      text += "\n- Tratamientos Generales:\n";
+      Object.entries(generalAreaTreatments).forEach(([treatment, data]) => {
+        const cost = getServiceCost(data.servicio_id, treatment);
+        text += `  • ${treatment} (Aplicación: ${data.areas.map(getAreaName).join(", ")}) - \$${formatNumberWithCommas(cost)}\n`;
+      });
     }
     if (hasSpecificTreatments) {
-        text += "\nTratamientos por Diente:\n";
-        Object.entries(specificToothTreatments).forEach(([treatment, data]) => {
-            const cost = getServiceCost(data.servicio_id, treatment);
-            const subtotal = cost * data.teeth.length;
-            text += `- ${treatment} (Dientes: ${data.teeth.join(", ")}) - \$${formatNumberWithCommas(cost)} x ${data.teeth.length} = \$${formatNumberWithCommas(subtotal)}\n`;
-        });
+      text += "\n- Tratamientos por Diente:\n";
+      Object.entries(specificToothTreatments).forEach(([treatment, data]) => {
+        const cost = getServiceCost(data.servicio_id, treatment);
+        const subtotal = cost * data.teeth.length;
+        text += `  • ${treatment} (Dientes: ${data.teeth.join(", ")}) - \$${formatNumberWithCommas(cost)} x ${data.teeth.length} = \$${formatNumberWithCommas(subtotal)}\n`;
+      });
     }
     if (!hasAnyTreatments) {
-      text += "No se han registrado tratamientos necesarios.\n";
+      text += "  No se han registrado tratamientos necesarios.\n";
     }
     text += `\nTotal Estimado: \$${formatNumberWithCommas(calculateTotalCost())}\n`;
+    
+    // Luego añadimos el diagnóstico al final
+    if (hasConditions) {
+      text += "\nDiagnóstico:\n";
+      Object.entries(toothStatus)
+        .filter(([key, statuses]) => !isGeneralAreaKey(key) && statuses?.some(s => s.type === "condition"))
+        .forEach(([tooth, statuses]) => {
+          text += `\nDiente ${tooth} (${getToothInfo(tooth).name}):\n`;
+          statuses?.filter(s => s.type === "condition").forEach(status => {
+            text += `- ${status.status}\n`;
+          });
+          if (toothComments[tooth]) {
+            text += `  Comentario: ${toothComments[tooth]}\n`;
+          }
+        });
+    }
     
     navigator.clipboard.writeText(text);
     
@@ -586,9 +594,8 @@ export default function TreatmentReport({
             </div>
           )}
 
-          <Tabs defaultValue="report" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="report">Diagnóstico</TabsTrigger>
+          <Tabs defaultValue="plan" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="plan">Plan de Tratamiento</TabsTrigger>
               {hasMultipleVersions && (
                 <TabsTrigger value="comparison">Comparar Versiones</TabsTrigger>
@@ -597,9 +604,27 @@ export default function TreatmentReport({
 
             <div id="current-report-content" className="space-y-6 print:space-y-4 print:p-0 w-full">
               <div className="flex justify-between items-start mt-4 print:mt-0 w-full">
-                <div>
-                  <h3 className="text-lg font-bold">Dentalove</h3>
-                  <p className="text-sm text-muted-foreground">Reporte generado el {currentDate}</p>
+                <div className="flex items-center gap-2">
+                  {consultorio && consultorio.logo && (
+                    <div className="w-10 h-10 relative overflow-hidden">
+                      <Image 
+                        src={consultorio.logo} 
+                        alt={consultorio.nombre || "Logo consultorio"}
+                        width={40}
+                        height={40}
+                        className="object-contain w-full h-full"
+                        onError={(e) => {
+                          // Manejar error cuando la imagen no carga
+                          const imgElement = e.target as HTMLImageElement;
+                          imgElement.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-lg font-bold">{consultorio ? consultorio.nombre : 'Dentalove'}</h3>
+                    <p className="text-sm text-muted-foreground">Reporte generado el {currentDate}</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <h3 className="text-lg font-bold">Paciente: {patientName}</h3>
@@ -610,58 +635,6 @@ export default function TreatmentReport({
                   )}
                 </div>
               </div>
-
-              <TabsContent value="report" data-value="report" className="mt-0">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-md font-semibold mb-2">Diagnóstico por Diente</h3>
-                    {hasConditions ? (
-                      <div className="space-y-3">
-                        {Object.entries(reportToothStatus)
-                          .filter(([key, statuses]) => !isGeneralAreaKey(key) && statuses?.some(s => s.type === "condition"))
-                          .map(([tooth, statuses]) => (
-                            <div key={tooth} className="border rounded-md p-3 print:border-gray-300 print:p-2">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h4 className="font-medium mb-1">Diente {tooth}</h4>
-                                  <div className="text-sm mb-2 text-muted-foreground print:text-gray-600">{getToothInfo(tooth).name}</div>
-                                  
-                                  <div>
-                                    <h5 className="text-xs font-medium text-gray-500">Condiciones:</h5>
-                                    <ul className="text-xs list-disc pl-4 mt-1">
-                                      {statuses
-                                        ?.filter((s) => s.type === "condition")
-                                        .map((status) => (
-                                          <li key={status.id}>{status.status}</li>
-                                        ))}
-                                    </ul>
-                                  </div>
-                                </div>
-                              </div>
-                              {toothComments[tooth] && (
-                                <div className="mt-2 p-2 bg-muted rounded-md text-xs print:bg-gray-100 print:p-1.5">
-                                  <p><strong>Comentario:</strong> {toothComments[tooth]}</p>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground print:text-gray-600">No se han registrado condiciones dentales específicas.</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3 className="text-md font-semibold mb-2">Observaciones Generales</h3>
-                    <Textarea
-                      value={observations}
-                      onChange={(e) => setObservations(e.target.value)}
-                      placeholder="Añada observaciones generales sobre el diagnóstico y plan..."
-                      className="min-h-[100px] print:min-h-[60px] print:text-sm"
-                    />
-                  </div>
-                </div>
-              </TabsContent>
 
               <TabsContent value="plan" data-value="plan" className="mt-0">
                 <div className="space-y-4">
@@ -783,6 +756,41 @@ export default function TreatmentReport({
                             <p className="text-lg font-bold print:text-base">${formatNumberWithCommas(calculateTotalCost())}</p>
                           </div>
                         </div>
+
+                        {hasConditions && (
+                          <div className="mt-6 pt-4 border-t print:mt-4 print:pt-3 print:border-gray-300">
+                            <h3 className="text-md font-semibold mb-2">Diagnóstico</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {Object.entries(reportToothStatus)
+                                .filter(([key, statuses]) => !isGeneralAreaKey(key) && statuses?.some(s => s.type === "condition"))
+                                .map(([tooth, statuses]) => (
+                                  <div key={tooth} className="border rounded-md p-2 print:border-gray-300 print:p-2">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <h4 className="font-medium text-sm">Diente {tooth}</h4>
+                                        <div className="text-xs text-muted-foreground print:text-gray-600">{getToothInfo(tooth).name}</div>
+                                        
+                                        <div className="mt-1">
+                                          <ul className="text-xs list-disc pl-4">
+                                            {statuses
+                                              ?.filter((s) => s.type === "condition")
+                                              .map((status) => (
+                                                <li key={status.id}>{status.status}</li>
+                                              ))}
+                                          </ul>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {toothComments[tooth] && (
+                                      <div className="mt-1 p-1.5 bg-muted rounded-md text-xs print:bg-gray-100 print:p-1">
+                                        <p><strong>Comentario:</strong> {toothComments[tooth]}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

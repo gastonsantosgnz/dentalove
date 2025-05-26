@@ -20,6 +20,13 @@ interface Paciente {
   created_at: string;
 }
 
+// Definir una interfaz para los planes de tratamiento
+interface PlanTratamiento {
+  id: string;
+  costo_total: string | number;
+  fecha: string;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [totalPatients, setTotalPatients] = useState(0);
@@ -108,7 +115,7 @@ export default function DashboardPage() {
         if (plansError) throw plansError;
         
         // Sum up all treatment plan costs
-        const totalIncome = treatmentPlans.reduce((sum, plan) => sum + parseFloat(plan.costo_total || 0), 0);
+        const totalIncome = treatmentPlans.reduce((sum: number, plan: PlanTratamiento) => sum + parseFloat(String(plan.costo_total || '0')), 0);
         
         // Get recent patients
         const { data: patients, error: patientsError } = await supabase

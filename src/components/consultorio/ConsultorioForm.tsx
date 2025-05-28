@@ -19,6 +19,9 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 
+// Importar el skeleton
+import { ConsultorioFormSkeleton } from './ConsultorioFormSkeleton';
+
 interface Consultorio {
   id: string;
   nombre: string;
@@ -438,7 +441,7 @@ export function ConsultorioForm() {
   };
 
   const renderDialogContent = () => (
-    <DialogContent className="sm:max-w-[425px]">
+    <DialogContent className="overflow-hidden sm:max-w-[425px]">
       <DialogHeader>
         <DialogTitle>Crear nuevo consultorio</DialogTitle>
         <DialogDescription>
@@ -511,15 +514,7 @@ export function ConsultorioForm() {
   );
 
   if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-10">
-          <div className="flex justify-center">
-            <p>Cargando información del consultorio...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <ConsultorioFormSkeleton showSelector={consultorios.length > 1} />;
   }
 
   if (consultorios.length === 0) {

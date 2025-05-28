@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { IconPlus, IconUserPlus, IconUsers, IconX, IconCheck, IconTrash } from "@tabler/icons-react";
+import { IconPlus, IconUserPlus, IconUsers, IconX, IconCheck, IconTrash, IconEdit } from "@tabler/icons-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +41,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+// Importar los componentes modales
+import { InvitarMiembroModal } from './InvitarMiembroModal';
+import { EditarRolModal } from './EditarRolModal';
+import { EliminarMiembroModal } from './EliminarMiembroModal';
 
 interface Miembro {
   id: string;
@@ -81,6 +86,61 @@ interface MiembroConsultorioRecord {
   usuarios: UsuarioWithPerfil;
 }
 
+// Add MiembrosConsultorioSkeleton component
+const MiembrosConsultorioSkeleton = ({ showSelector = false }: { showSelector?: boolean }) => {
+  return (
+    <div className="space-y-6">
+      {showSelector && (
+        <div className="mb-6">
+          <div className="h-5 w-48 bg-gray-200 animate-pulse rounded mb-2"></div>
+          <div className="h-10 w-full bg-gray-200 animate-pulse rounded"></div>
+        </div>
+      )}
+      
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="h-6 w-48 bg-gray-200 animate-pulse rounded mb-2"></div>
+              <div className="h-4 w-64 bg-gray-200 animate-pulse rounded"></div>
+            </div>
+            <div className="h-9 w-24 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead><div className="h-4 bg-gray-200 w-24 animate-pulse rounded"></div></TableHead>
+                  <TableHead><div className="h-4 bg-gray-200 w-32 animate-pulse rounded"></div></TableHead>
+                  <TableHead><div className="h-4 bg-gray-200 w-16 animate-pulse rounded"></div></TableHead>
+                  <TableHead><div className="h-4 bg-gray-200 w-20 animate-pulse rounded"></div></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...Array(5)].map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell><div className="h-5 bg-gray-200 w-32 animate-pulse rounded"></div></TableCell>
+                    <TableCell><div className="h-5 bg-gray-200 w-48 animate-pulse rounded"></div></TableCell>
+                    <TableCell><div className="h-5 bg-gray-200 w-20 animate-pulse rounded"></div></TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <div className="h-8 w-8 bg-gray-200 animate-pulse rounded"></div>
+                        <div className="h-8 w-8 bg-gray-200 animate-pulse rounded"></div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 export function MiembrosConsultorio() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -88,18 +148,13 @@ export function MiembrosConsultorio() {
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [consultorioSeleccionado, setConsultorioSeleccionado] = useState<string>('');
   const [consultorios, setConsultorios] = useState<{ id: string, nombre: string, rol: string }[]>([]);
+  
+  // Estados para los modales
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditRolDialogOpen, setIsEditRolDialogOpen] = useState(false);
   const [miembroParaEliminar, setMiembroParaEliminar] = useState<Miembro | null>(null);
   const [miembroParaEditar, setMiembroParaEditar] = useState<Miembro | null>(null);
-  const [nuevoRol, setNuevoRol] = useState('');
-  
-  // Estado para el formulario de invitación
-  const [invitacion, setInvitacion] = useState({
-    email: '',
-    rol: 'doctor'
-  });
 
   // Cargar consultorios del usuario
   useEffect(() => {
@@ -189,52 +244,54 @@ export function MiembrosConsultorio() {
         // Para cada miembro, obtener sus datos de usuario en consultas separadas
         const miembrosData: Miembro[] = [];
         
+        // Obtener perfiles de usuario en una sola consulta
+        const usuarioIds = data.map(item => item.usuario_id);
+        const { data: perfilesData, error: perfilesError } = await supabase
+          .from('perfiles_usuario')
+          .select('id, nombre, apellido, email')
+          .in('id', usuarioIds);
+        
+        if (perfilesError) {
+          console.error('Error al cargar perfiles:', perfilesError);
+        }
+        
+        // Crear un mapa de usuario_id -> datos de perfil
+        const perfilesMap = new Map();
+        if (perfilesData) {
+          perfilesData.forEach(perfil => {
+            perfilesMap.set(perfil.id, perfil);
+          });
+        }
+        
         for (const item of data) {
           try {
-            let nombre = 'Usuario';
+            let nombre = 'Usuario sin nombre';
             let email = 'Sin email';
             
-            // Intentar obtener perfil del usuario
-            try {
-              const { data: perfilData } = await supabase
-                .from('perfiles_usuario')
-                .select('nombre, apellido')
-                .eq('id', item.usuario_id)
-                .single();
-                
-              if (perfilData) {
-                nombre = `${perfilData.nombre || ''} ${perfilData.apellido || ''}`.trim();
-                if (nombre === '') nombre = 'Usuario sin nombre';
+            // Obtener datos del perfil del mapa
+            const perfil = perfilesMap.get(item.usuario_id);
+            if (perfil) {
+              if (perfil.nombre || perfil.apellido) {
+                nombre = `${perfil.nombre || ''} ${perfil.apellido || ''}`.trim();
               }
-            } catch (perfilError) {
-              console.warn(`No se pudo obtener perfil para ${item.usuario_id}`);
-              // Continuamos aunque no tengamos el perfil
+              if (perfil.email) {
+                email = perfil.email;
+              }
             }
             
-            // Intentar obtener email del usuario
-            try {
-              const { data: authUser } = await supabase.auth.getUser(item.usuario_id);
-              if (authUser && authUser.user) {
-                email = authUser.user.email || 'Sin email';
-              }
-            } catch (authError) {
-              console.warn(`No se pudo obtener email para ${item.usuario_id}`);
-              // Continuamos aunque no tengamos el email
-            }
-            
-            // Si no se pudo obtener el nombre ni el email, usar un identificador genérico
-            if (nombre === 'Usuario sin nombre' && email === 'Sin email') {
-              nombre = `Miembro #${item.usuario_id.substring(0, 8)}`;
-            }
-            
-            // Si es el usuario actual, asegurar que se muestre
-            if (item.usuario_id === user.id) {
-              if (email === 'Sin email') {
-                email = user.email || 'Sin email';
-              }
+            // Si es el usuario actual y no tenemos su email del perfil, usar el del contexto de auth
+            if (item.usuario_id === user.id && email === 'Sin email') {
+              email = user.email || 'Sin email';
+              
+              // Si es el usuario actual pero no tiene nombre, mostrar uno genérico
               if (nombre === 'Usuario sin nombre') {
                 nombre = `Usuario (${user.email || 'Tú'})`;
               }
+            }
+            
+            // Si no se pudo obtener el nombre, usar un identificador genérico
+            if (nombre === 'Usuario sin nombre') {
+              nombre = `Miembro #${item.usuario_id.substring(0, 8)}`;
             }
               
             miembrosData.push({
@@ -252,7 +309,7 @@ export function MiembrosConsultorio() {
             miembrosData.push({
               id: item.id,
               usuario_id: item.usuario_id,
-              email: 'Sin email',
+              email: item.usuario_id === user.id ? user.email || 'Sin email' : 'Sin email',
               nombre: `Miembro #${item.usuario_id.substring(0, 8)}`,
               rol: item.rol,
               activo: item.activo
@@ -282,244 +339,28 @@ export function MiembrosConsultorio() {
     setConsultorioSeleccionado(e.target.value);
   };
 
-  const handleInviteInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setInvitacion(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Manejadores para eventos de modales
+  const handleMiembroAgregado = (nuevoMiembro: Miembro) => {
+    setMiembros(prev => [...prev, nuevoMiembro]);
   };
 
-  const handleRolChange = (value: string) => {
-    setInvitacion(prev => ({
-      ...prev,
-      rol: value
-    }));
+  const handleRolActualizado = (miembroId: string, nuevoRol: string) => {
+    setMiembros(prev => prev.map(m => 
+      m.id === miembroId ? {...m, rol: nuevoRol} : m
+    ));
   };
 
-  const handleInviteSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!consultorioSeleccionado || !invitacion.email || !invitacion.rol) {
-      toast({
-        title: "Error",
-        description: "Por favor completa todos los campos",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Verificar si el usuario actual es admin del consultorio
-    const userConsultorio = consultorios.find(c => c.id === consultorioSeleccionado);
-    if (userConsultorio?.rol !== 'admin') {
-      toast({
-        title: "Acceso denegado",
-        description: "Solo administradores pueden invitar miembros",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    try {
-      // Buscar si el usuario ya existe en la plataforma usando la API de auth
-      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error('Error al buscar usuarios:', authError);
-        toast({
-          title: "Error",
-          description: "Error al procesar la invitación",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Buscar el usuario por email
-      const usuarioExistente = authData?.users?.find(u => u.email === invitacion.email);
-      
-      // TODO: Implementar envío de email de invitación si el usuario no existe
-      if (!usuarioExistente) {
-        toast({
-          title: "Usuario no encontrado",
-          description: "El correo electrónico no está registrado en la plataforma. Se enviará una invitación por email (funcionalidad pendiente).",
-        });
-        setIsInviteDialogOpen(false);
-        return;
-      }
-      
-      // Verificar si el usuario ya es miembro del consultorio
-      const { data: miembroExistente } = await supabase
-        .from('usuarios_consultorios')
-        .select('id')
-        .eq('consultorio_id', consultorioSeleccionado)
-        .eq('usuario_id', usuarioExistente.id);
-      
-      if (miembroExistente && miembroExistente.length > 0) {
-        toast({
-          title: "Usuario ya es miembro",
-          description: "Este usuario ya es miembro del consultorio",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Agregar usuario al consultorio
-      const { error } = await supabase
-        .from('usuarios_consultorios')
-        .insert({
-          usuario_id: usuarioExistente.id,
-          consultorio_id: consultorioSeleccionado,
-          rol: invitacion.rol,
-          activo: true
-        });
-      
-      if (error) {
-        console.error('Error al agregar miembro:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo agregar al miembro al consultorio",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Miembro agregado",
-          description: "Se ha agregado al miembro al consultorio exitosamente"
-        });
-        
-        // Recargar miembros
-        setIsInviteDialogOpen(false);
-        setInvitacion({ email: '', rol: 'doctor' });
-        
-        // Agregar el nuevo miembro a la lista
-        setMiembros(prev => [
-          ...prev,
-          {
-            id: Date.now().toString(), // Temporal hasta recargar
-            usuario_id: usuarioExistente.id,
-            email: usuarioExistente.email || invitacion.email,
-            nombre: usuarioExistente.user_metadata?.nombre || usuarioExistente.email || invitacion.email,
-            rol: invitacion.rol,
-            activo: true
-          }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error general al invitar:', error);
-      toast({
-        title: "Error",
-        description: "Ocurrió un error al procesar la invitación",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Función para actualizar el rol de un miembro
-  const handleEditRol = async () => {
-    if (!miembroParaEditar || !nuevoRol) return;
-    
-    // Verificar si el usuario actual es admin
-    const userConsultorio = consultorios.find(c => c.id === consultorioSeleccionado);
-    if (userConsultorio?.rol !== 'admin') {
-      toast({
-        title: "Acceso denegado",
-        description: "Solo administradores pueden cambiar roles",
-        variant: "destructive"
-      });
-      setIsEditRolDialogOpen(false);
-      return;
-    }
-    
-    const { error } = await supabase
-      .from('usuarios_consultorios')
-      .update({ rol: nuevoRol })
-      .eq('id', miembroParaEditar.id);
-    
-    if (error) {
-      console.error('Error al actualizar rol:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el rol del miembro",
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Rol actualizado",
-        description: "Se ha actualizado el rol del miembro exitosamente"
-      });
-      
-      // Actualizar lista de miembros
-      setMiembros(prev => prev.map(m => 
-        m.id === miembroParaEditar.id ? {...m, rol: nuevoRol} : m
-      ));
-    }
-    
-    setIsEditRolDialogOpen(false);
-    setMiembroParaEditar(null);
-    setNuevoRol('');
-  };
-
-  const handleDeleteMember = async () => {
-    if (!miembroParaEliminar) return;
-    
-    // Verificar si el usuario actual es admin
-    const userConsultorio = consultorios.find(c => c.id === consultorioSeleccionado);
-    if (userConsultorio?.rol !== 'admin') {
-      toast({
-        title: "Acceso denegado",
-        description: "Solo administradores pueden eliminar miembros",
-        variant: "destructive"
-      });
-      setIsDeleteDialogOpen(false);
-      return;
-    }
-    
-    // No permitir eliminar al propio usuario
-    if (miembroParaEliminar.usuario_id === user?.id) {
-      toast({
-        title: "Acción no permitida",
-        description: "No puedes eliminarte a ti mismo del consultorio",
-        variant: "destructive"
-      });
-      setIsDeleteDialogOpen(false);
-      return;
-    }
-    
-    const { error } = await supabase
-      .from('usuarios_consultorios')
-      .delete()
-      .eq('id', miembroParaEliminar.id);
-    
-    if (error) {
-      console.error('Error al eliminar miembro:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar al miembro del consultorio",
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Miembro eliminado",
-        description: "Se ha eliminado al miembro del consultorio exitosamente"
-      });
-      
-      // Actualizar lista de miembros
-      setMiembros(prev => prev.filter(m => m.id !== miembroParaEliminar.id));
-    }
-    
-    setIsDeleteDialogOpen(false);
-    setMiembroParaEliminar(null);
+  const handleMiembroEliminado = (miembroId: string) => {
+    setMiembros(prev => prev.filter(m => m.id !== miembroId));
   };
 
   if (loading && consultorios.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-10">
-          <div className="flex justify-center">
-            <p>Cargando información...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <MiembrosConsultorioSkeleton showSelector={true} />;
+  }
+
+  // Replace the loading text with the skeleton
+  if (loading) {
+    return <MiembrosConsultorioSkeleton showSelector={consultorios.length > 1} />;
   }
 
   if (consultorios.length === 0) {
@@ -617,11 +458,10 @@ export function MiembrosConsultorio() {
                             className="text-blue-500"
                             onClick={() => {
                               setMiembroParaEditar(miembro);
-                              setNuevoRol(miembro.rol);
                               setIsEditRolDialogOpen(true);
                             }}
                           >
-                            <IconUserPlus className="h-4 w-4" />
+                            <IconEdit className="h-4 w-4" />
                             <span className="sr-only">Editar rol</span>
                           </Button>
                           
@@ -650,124 +490,32 @@ export function MiembrosConsultorio() {
         </CardContent>
       </Card>
 
-      {/* Diálogo para invitar miembros */}
-      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invitar miembro al consultorio</DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleInviteSubmit} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="correo@ejemplo.com"
-                value={invitacion.email}
-                onChange={handleInviteInputChange}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="rol">Rol en el consultorio</Label>
-              <Select 
-                value={invitacion.rol} 
-                onValueChange={handleRolChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="asistente">Asistente</SelectItem>
-                  <SelectItem value="recepcionista">Recepcionista</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <DialogFooter className="pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsInviteDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit">Invitar</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Modales usando los componentes separados */}
+      <InvitarMiembroModal
+        open={isInviteDialogOpen}
+        onOpenChange={setIsInviteDialogOpen}
+        consultorioId={consultorioSeleccionado}
+        esAdmin={esAdmin}
+        userId={user?.id || ''}
+        onMiembroAgregado={handleMiembroAgregado}
+      />
 
-      {/* Diálogo para editar rol */}
-      <Dialog open={isEditRolDialogOpen} onOpenChange={setIsEditRolDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cambiar rol de miembro</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div>
-              <p className="text-sm font-medium">
-                Miembro: <span className="font-bold">{miembroParaEditar?.nombre}</span>
-              </p>
-              <p className="text-sm text-muted-foreground">{miembroParaEditar?.email}</p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="rol">Nuevo rol</Label>
-              <Select 
-                value={nuevoRol} 
-                onValueChange={setNuevoRol}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="asistente">Asistente</SelectItem>
-                  <SelectItem value="recepcionista">Recepcionista</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <DialogFooter className="pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsEditRolDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleEditRol}>Guardar cambios</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EditarRolModal
+        open={isEditRolDialogOpen}
+        onOpenChange={setIsEditRolDialogOpen}
+        miembro={miembroParaEditar}
+        esAdmin={esAdmin}
+        onRolActualizado={handleRolActualizado}
+      />
 
-      {/* Diálogo para eliminar miembro */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar miembro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción removerá a {miembroParaEliminar?.nombre} ({miembroParaEliminar?.email}) del consultorio.
-              No podrá acceder más a la información de este consultorio.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteMember}>
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <EliminarMiembroModal
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        miembro={miembroParaEliminar}
+        esAdmin={esAdmin}
+        usuarioActualId={user?.id || ''}
+        onMiembroEliminado={handleMiembroEliminado}
+      />
     </div>
   );
 } 

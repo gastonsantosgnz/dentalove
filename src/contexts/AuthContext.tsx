@@ -82,24 +82,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Obtener la sesión actual al cargar
     const getInitialSession = async () => {
       try {
-        setIsLoading(true);
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         
-        if (unmountedRef.current) return;
+        if (error) {
+          console.error('Error getting session:', error);
+          setIsLoading(false);
+          return;
+        }
         
         setSession(data.session);
         setUser(data.session?.user ?? null);
-
-        // Solo redirigir si tenemos una sesión
-        if (data.session) {
-          redirectIfNeeded(data.session);
+        
+        // Si hay un usuario autenticado, asegurarse de que tiene perfil
+        if (data.session?.user) {
+          try {
+            await createUserProfileIfNew(data.session.user.id);
+            // Actualizar email en el perfil de usuario existente
+            await updateUserEmailIfNeeded(data.session.user);
+          } catch (err) {
+            console.error('Error initializing user profile:', err);
+          }
         }
-      } catch (error) {
-        console.error('Error loading session:', error);
-      } finally {
-        if (!unmountedRef.current) {
-          setIsLoading(false);
-        }
+        
+        setIsLoading(false);
+      } catch (e) {
+        console.error('Unexpected error in getInitialSession:', e);
+        setIsLoading(false);
       }
     };
 
@@ -196,6 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Verificar si es un nuevo usuario y crear perfil si es necesario
         await createUserProfileIfNew(data.session.user.id);
+        // Actualizar email en el perfil si es necesario
+        await updateUserEmailIfNeeded(data.session.user);
         
         // Establecer una cookie para evitar problemas con el middleware
         document.cookie = "skip_auth=true; path=/; max-age=60";
@@ -273,12 +283,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('[AuthContext] Creating new user profile for:', userId);
       
-      // Crear el perfil con ID y nombre
+      // Crear el perfil con ID, nombre y email
       const { data, error } = await supabase
         .from('perfiles_usuario')
         .insert({
           id: userId,
-          nombre: defaultName
+          nombre: defaultName,
+          email: userEmail // Guardar el email en el perfil
         })
         .select();
       
@@ -295,6 +306,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('[AuthContext] Unexpected error in createUserProfileIfNew:', error);
+    }
+  };
+
+  // Actualizar el email en el perfil de usuario si es necesario
+  const updateUserEmailIfNeeded = async (user: User) => {
+    if (!user || !user.email) return;
+    
+    try {
+      console.log('[AuthContext] Checking if user profile needs email update:', user.id);
+      
+      // Verificar si el perfil existe y si tiene email
+      const { data: profileData, error: profileError } = await supabase
+        .from('perfiles_usuario')
+        .select('id, email')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileError) {
+        console.error('[AuthContext] Error checking user profile for email update:', profileError);
+        return;
+      }
+      
+      // Si el perfil existe pero no tiene email o es diferente al actual, actualizarlo
+      if (profileData && (!profileData.email || profileData.email !== user.email)) {
+        console.log('[AuthContext] Updating email in user profile:', user.id);
+        
+        const { error: updateError } = await supabase
+          .from('perfiles_usuario')
+          .update({ email: user.email })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error('[AuthContext] Error updating email in user profile:', updateError);
+        } else {
+          console.log('[AuthContext] Successfully updated email in user profile');
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] Unexpected error in updateUserEmailIfNeeded:', error);
     }
   };
 

@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { Doctor } from "@/lib/doctoresService";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AddDoctorDialogProps {
   onSubmit: (doctor: Omit<Doctor, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -33,6 +35,9 @@ export function AddDoctorDialog({
   isOpen: externalOpen,
   onOpenChange: externalOnOpenChange,
 }: AddDoctorDialogProps) {
+  // Get user from AuthContext
+  const { user } = useAuth();
+  
   // Referencias para el enfoque
   const nombreInputRef = useRef<HTMLInputElement>(null);
   const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -42,12 +47,48 @@ export function AddDoctorDialog({
   const [nombre, setNombre] = useState("");
   const [especialidad, setEspecialidad] = useState("");
   const [celular, setCelular] = useState("");
+  const [consultorioId, setConsultorioId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [internalOpen, setInternalOpen] = useState(false);
   
   // Determinar si el control de apertura es interno o externo
   const isControlledExternally = externalOpen !== undefined && externalOnOpenChange !== undefined;
   const open = isControlledExternally ? externalOpen : internalOpen;
+  
+  // Fetch the user's consultorio_id when dialog opens
+  const fetchConsultorioId = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('usuarios_consultorios')
+        .select(`
+          consultorio_id
+        `)
+        .eq('usuario_id', user.id)
+        .eq('activo', true)
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching consultorio_id:', error);
+        return;
+      }
+      
+      if (data) {
+        setConsultorioId(data.consultorio_id);
+      }
+    } catch (error) {
+      console.error('Error fetching consultorio_id:', error);
+    }
+  }, [user]);
+  
+  // Call fetchConsultorioId when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchConsultorioId();
+    }
+  }, [open, fetchConsultorioId]);
   
   // Función segura para actualizar el estado open
   const handleOpenChange = useCallback((newOpen: boolean) => {
@@ -112,6 +153,12 @@ export function AddDoctorDialog({
     
     if (isLoading) return;
     
+    // Verificar que tengamos consultorio_id
+    if (!consultorioId) {
+      console.error("Missing consultorio_id");
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -120,6 +167,7 @@ export function AddDoctorDialog({
         nombre_completo: nombre,
         especialidad,
         celular,
+        consultorio_id: consultorioId,
       });
       
       // Limpiar y cerrar solo después de que la operación se complete
@@ -200,7 +248,7 @@ export function AddDoctorDialog({
           <DialogFooter>
             <Button 
               type="submit" 
-              disabled={isLoading}
+              disabled={isLoading || !consultorioId}
               ref={submitButtonRef}
               tabIndex={0}
             >

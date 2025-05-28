@@ -5,6 +5,7 @@ export interface Doctor {
   nombre_completo: string;
   especialidad: string;
   celular?: string;
+  consultorio_id: string;
   created_at?: string;
   updated_at?: string;
 }

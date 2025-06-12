@@ -69,9 +69,18 @@ export default function DentalChart({
     } 
     // Para los dientes infantiles, usaremos directamente la numeración FDI
     else if (chartType === "child") {
-      // Para dientes infantiles, usamos directamente el número FDI
+      // Corregir la asignación de imágenes para los dientes 72, 73, 74 y 75
+      let imageNumber = toothNumber;
+      
+      // Intercambiar números para corregir las imágenes
+      if (toothNumber === "72") imageNumber = "74";
+      else if (toothNumber === "73") imageNumber = "75";
+      else if (toothNumber === "74") imageNumber = "72";
+      else if (toothNumber === "75") imageNumber = "73";
+      
+      // Para dientes infantiles, usamos directamente el número FDI (con las correcciones)
       if (childTeeth.includes(toothNumber)) {
-        return `https://jzlagehrckqnxufcmbjg.supabase.co/storage/v1/object/public/dental-app/${toothNumber}.png`;
+        return `https://jzlagehrckqnxufcmbjg.supabase.co/storage/v1/object/public/dental-app/${imageNumber}.png`;
       }
     }
     

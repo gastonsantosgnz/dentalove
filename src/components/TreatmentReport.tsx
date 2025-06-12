@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Label } from "@/components/ui/label"
 import { useConsultorio } from "@/contexts/ConsultorioContext"
 import Image from "next/image"
+import { Switch } from "@/components/ui/switch"
 
 // Función para formatear cantidades con separadores de miles sin decimales
 const formatNumberWithCommas = (amount: number): string => {
@@ -76,7 +77,10 @@ export default function TreatmentReport({
     day: "numeric",
   })
   
-  const [selectedVersionId, setSelectedVersionId] = useState<string>("") 
+  const [selectedVersionId, setSelectedVersionId] = useState<string>("")
+  
+  // Add state for toggle between treatment-based and tooth-based view
+  const [groupByTooth, setGroupByTooth] = useState(false)
   
   useEffect(() => {
     if (open && activeVersionId) {
@@ -525,6 +529,25 @@ export default function TreatmentReport({
     handleSaveCost(treatment)
   }
 
+  // Create a structure to organize treatments by tooth
+  const treatmentsByTooth: Record<string, { treatments: { name: string, color: string, servicioId?: string | null }[] }> = {}
+  
+  // Populate the treatmentsByTooth structure
+  Object.entries(reportToothStatus).forEach(([toothId, statuses]) => {
+    if (!isGeneralAreaKey(toothId)) {
+      const treatments = statuses?.filter(s => s.type === 'treatment') || []
+      if (treatments.length > 0) {
+        treatmentsByTooth[toothId] = {
+          treatments: treatments.map(treatment => ({
+            name: treatment.status,
+            color: treatment.color,
+            servicioId: treatment.servicio_id
+          }))
+        }
+      }
+    }
+  })
+
   return (
     <>
       <Button 
@@ -691,9 +714,25 @@ export default function TreatmentReport({
                           </div>
                         )}
 
+                        {/* Treatment toggle switch between grouping by treatment or by tooth */}
                         {hasSpecificTreatments && (
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-semibold">Tratamientos por Diente</h4>
+                            <div className="flex items-center space-x-2">
+                              <Label htmlFor="view-mode" className="text-xs">Por tratamiento</Label>
+                              <Switch 
+                                id="view-mode" 
+                                checked={groupByTooth} 
+                                onCheckedChange={setGroupByTooth}
+                              />
+                              <Label htmlFor="view-mode" className="text-xs">Por diente</Label>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* View by treatment (original) */}
+                        {hasSpecificTreatments && !groupByTooth && (
                           <div className="print:mt-3 w-full">
-                            <h4 className="text-sm font-semibold mb-1">Tratamientos por Diente</h4>
                             <table className="w-full border-collapse text-xs sm:text-sm print:text-xs">
                               <thead>
                                 <tr className="bg-muted print:bg-gray-100">
@@ -750,47 +789,64 @@ export default function TreatmentReport({
                           </div>
                         )}
 
+                        {/* View by tooth (new) */}
+                        {hasSpecificTreatments && groupByTooth && (
+                          <div className="print:mt-3 w-full">
+                            <table className="w-full border-collapse text-xs sm:text-sm print:text-xs">
+                              <thead>
+                                <tr className="bg-muted print:bg-gray-100">
+                                  <th className="text-left p-2 print:p-1.5">Diente</th>
+                                  <th className="text-left p-2 print:p-1.5">Estado Actual</th>
+                                  <th className="text-left p-2 print:p-1.5">Tratamiento Sugerido</th>
+                                  <th className="text-left p-2 print:p-1.5">Precio</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(treatmentsByTooth).sort((a, b) => {
+                                  // Sort teeth numerically (e.g., 11, 12, 13...)
+                                  return parseInt(a[0]) - parseInt(b[0]);
+                                }).map(([toothId, data]) => {
+                                  // Get tooth conditions
+                                  const conditions = reportToothStatus[toothId]?.filter(s => s.type === 'condition') || [];
+                                  const conditionText = conditions.map(c => c.status).join(", ");
+                                  
+                                  // Calculate total cost for this tooth
+                                  const toothTotalCost = data.treatments.reduce((sum, treatment) => {
+                                    return sum + getServiceCost(treatment.servicioId, treatment.name, toothId);
+                                  }, 0);
+                                  
+                                  return (
+                                    <tr key={toothId} className="border-b print:border-gray-300">
+                                      <td className="p-2 print:p-1.5 font-medium">{toothId}</td>
+                                      <td className="p-2 print:p-1.5">{conditionText || "-"}</td>
+                                      <td className="p-2 print:p-1.5">
+                                        {data.treatments.map((treatment, idx) => (
+                                          <div key={idx} className="flex items-center mb-1 last:mb-0">
+                                            <span
+                                              className="inline-block w-3 h-3 rounded-full mr-2 flex-shrink-0 print:w-2 print:h-2"
+                                              style={{ backgroundColor: treatment.color }}
+                                            />
+                                            <span>{treatment.name}</span>
+                                          </div>
+                                        ))}
+                                      </td>
+                                      <td className="p-2 whitespace-nowrap print:p-1.5">
+                                        ${formatNumberWithCommas(toothTotalCost)}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
                         <div className="flex justify-end pt-4 border-t print:pt-2 print:border-gray-300">
                           <div className="text-right">
                             <p className="font-medium text-sm print:text-xs">Total Estimado:</p>
                             <p className="text-lg font-bold print:text-base">${formatNumberWithCommas(calculateTotalCost())}</p>
                           </div>
                         </div>
-
-                        {hasConditions && (
-                          <div className="mt-6 pt-4 border-t print:mt-4 print:pt-3 print:border-gray-300">
-                            <h3 className="text-md font-semibold mb-2">Diagnóstico</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {Object.entries(reportToothStatus)
-                                .filter(([key, statuses]) => !isGeneralAreaKey(key) && statuses?.some(s => s.type === "condition"))
-                                .map(([tooth, statuses]) => (
-                                  <div key={tooth} className="border rounded-md p-2 print:border-gray-300 print:p-2">
-                                    <div className="flex justify-between items-start">
-                                      <div>
-                                        <h4 className="font-medium text-sm">Diente {tooth}</h4>
-                                        <div className="text-xs text-muted-foreground print:text-gray-600">{getToothInfo(tooth).name}</div>
-                                        
-                                        <div className="mt-1">
-                                          <ul className="text-xs list-disc pl-4">
-                                            {statuses
-                                              ?.filter((s) => s.type === "condition")
-                                              .map((status) => (
-                                                <li key={status.id}>{status.status}</li>
-                                              ))}
-                                          </ul>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    {toothComments[tooth] && (
-                                      <div className="mt-1 p-1.5 bg-muted rounded-md text-xs print:bg-gray-100 print:p-1">
-                                        <p><strong>Comentario:</strong> {toothComments[tooth]}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>

@@ -14,6 +14,7 @@ import { getServicios } from "@/lib/serviciosService"
 import { useToast } from "@/components/ui/use-toast"
 import { Paciente, Servicio } from "@/lib/database"
 import { Doctor } from "@/lib/doctoresService"
+import { useConsultorio } from "@/contexts/ConsultorioContext"
 
 // Define the event interface for our calendar
 interface CalendarEvent {
@@ -32,20 +33,61 @@ interface CalendarDay {
   events: CalendarEvent[]
 }
 
+// Loading component
+function CalendarioLoading() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-2">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+        <p className="text-sm text-muted-foreground">Cargando calendario...</p>
+      </div>
+    </div>
+  )
+}
+
+// Error component
+function CalendarioError({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <h2 className="text-lg font-semibold mb-2">Error al cargar el calendario</h2>
+        <p className="text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  )
+}
+
+// No consultorio component
+function NoConsultorio() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <h2 className="text-lg font-semibold mb-2">No hay consultorio configurado</h2>
+        <p className="text-muted-foreground">Necesitas configurar un consultorio para gestionar citas.</p>
+      </div>
+    </div>
+  )
+}
+
 // Fetch server data
 export default function CalendarioPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [appointments, setAppointments] = useState<CalendarDay[]>([])
   const [patients, setPatients] = useState<Paciente[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [services, setServices] = useState<Servicio[]>([])
   const { toast } = useToast()
+  const { consultorio, isLoading: consultorioLoading } = useConsultorio()
 
   // Load all data we need for the calendar
   const loadData = useCallback(async () => {
+    if (!consultorio) return
+
     try {
       setIsLoading(true)
+      setError(null)
       
       // Fetch all appointments
       const appointmentsData = await getAppointments()
@@ -64,6 +106,8 @@ export default function CalendarioPage() {
       setServices(servicesData)
     } catch (error) {
       console.error("Error loading data:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido"
+      setError(errorMessage)
       toast({
         title: "Error",
         description: "No se pudieron cargar los datos del calendario",
@@ -72,7 +116,7 @@ export default function CalendarioPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, consultorio])
   
   // Transform appointments to calendar data
   function transformAppointmentsToCalendarData(appointments: Appointment[]): CalendarDay[] {
@@ -104,7 +148,9 @@ export default function CalendarioPage() {
   }
   
   // Handle creating a new appointment
-  async function handleCreateAppointment(appointmentData: any) {
+  const handleCreateAppointment = useCallback(async (appointmentData: any) => {
+    if (!consultorio) return
+
     try {
       // Format the date for Supabase
       const formattedDate = format(appointmentData.date, "yyyy-MM-dd")
@@ -130,12 +176,29 @@ export default function CalendarioPage() {
         variant: "destructive"
       })
     }
-  }
+  }, [consultorio, loadData, toast])
   
   // Load initial data on component mount
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (!consultorioLoading && consultorio) {
+      loadData()
+    }
+  }, [loadData, consultorioLoading, consultorio])
+
+  // Show loading if consultorio is still loading
+  if (consultorioLoading) {
+    return <CalendarioLoading />
+  }
+
+  // Show message if no consultorio
+  if (!consultorio) {
+    return <NoConsultorio />
+  }
+
+  // Show error if there was an error loading data
+  if (error) {
+    return <CalendarioError message={error} />
+  }
 
   return (
     <motion.div
@@ -146,9 +209,7 @@ export default function CalendarioPage() {
     >
       <div className="flex flex-col h-full">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
-          </div>
+          <CalendarioLoading />
         ) : (
           <FullScreenCalendar 
             data={appointments as any}
@@ -165,6 +226,7 @@ export default function CalendarioPage() {
         patients={patients}
         doctors={doctors}
         services={services}
+        consultorioId={consultorio.id}
       />
     </motion.div>
   )

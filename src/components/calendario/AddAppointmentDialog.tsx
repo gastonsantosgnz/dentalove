@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState } from "react"
 import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon, Clock } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -38,6 +39,7 @@ interface Appointment {
   patient_id: string
   doctor_id: string
   service_id: string
+  consultorio_id: string
   notes?: string
 }
 
@@ -48,6 +50,7 @@ interface AddAppointmentDialogProps {
   patients: Array<{ id: string, nombre_completo: string }>
   doctors: Array<{ id: string, nombre_completo: string }>
   services: Array<{ id: string, nombre_servicio: string, duracion: number }>
+  consultorioId: string
 }
 
 export function AddAppointmentDialog({
@@ -56,7 +59,8 @@ export function AddAppointmentDialog({
   onSubmit,
   patients,
   doctors,
-  services
+  services,
+  consultorioId
 }: AddAppointmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [title, setTitle] = useState("")
@@ -70,7 +74,7 @@ export function AddAppointmentDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!title || !selectedDate || !time || !patientId || !doctorId || !serviceId) {
+    if (!title || !selectedDate || !time || !patientId || !doctorId || !serviceId || !consultorioId) {
       return
     }
     
@@ -84,6 +88,7 @@ export function AddAppointmentDialog({
         patient_id: patientId,
         doctor_id: doctorId,
         service_id: serviceId,
+        consultorio_id: consultorioId,
         notes
       }
       
@@ -104,6 +109,17 @@ export function AddAppointmentDialog({
       console.error("Error creating appointment:", error)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // Helper function to safely format dates
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return "Selecciona fecha"
+    try {
+      return format(date, "PPP", { locale: es })
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return format(date, "dd/MM/yyyy") // Fallback format
     }
   }
 
@@ -132,13 +148,11 @@ export function AddAppointmentDialog({
             
             {/* Date and time */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Date picker */}
               <div className="grid gap-2">
-                <Label htmlFor="date">Fecha *</Label>
+                <Label>Fecha *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      id="date"
                       variant="outline"
                       className={cn(
                         "justify-start text-left font-normal",
@@ -146,14 +160,10 @@ export function AddAppointmentDialog({
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? (
-                        format(selectedDate, "PPP")
-                      ) : (
-                        <span>Selecciona una fecha</span>
-                      )}
+                      {formatDate(selectedDate)}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[9999]">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
@@ -164,11 +174,9 @@ export function AddAppointmentDialog({
                 </Popover>
               </div>
               
-              {/* Time input */}
               <div className="grid gap-2">
                 <Label htmlFor="time">Hora *</Label>
-                <div className="flex items-center">
-                  <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
+                <div className="relative">
                   <Input
                     id="time"
                     type="time"
@@ -176,11 +184,12 @@ export function AddAppointmentDialog({
                     onChange={(e) => setTime(e.target.value)}
                     required
                   />
+                  <Clock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
             </div>
             
-            {/* Patient select */}
+            {/* Patient selection */}
             <div className="grid gap-2">
               <Label htmlFor="patient">Paciente *</Label>
               <Select value={patientId} onValueChange={setPatientId} required>
@@ -197,7 +206,7 @@ export function AddAppointmentDialog({
               </Select>
             </div>
             
-            {/* Doctor select */}
+            {/* Doctor selection */}
             <div className="grid gap-2">
               <Label htmlFor="doctor">Doctor *</Label>
               <Select value={doctorId} onValueChange={setDoctorId} required>
@@ -214,7 +223,7 @@ export function AddAppointmentDialog({
               </Select>
             </div>
             
-            {/* Service select */}
+            {/* Service selection */}
             <div className="grid gap-2">
               <Label htmlFor="service">Servicio *</Label>
               <Select value={serviceId} onValueChange={setServiceId} required>

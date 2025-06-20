@@ -9,6 +9,7 @@ export interface Appointment {
   patient_id: string
   doctor_id: string
   service_id: string
+  consultorio_id: string
   notes?: string
   created_at: string
   updated_at: string
@@ -31,6 +32,7 @@ export async function createAppointment(appointment: Omit<Appointment, "id" | "c
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
       service_id: appointment.service_id,
+      consultorio_id: appointment.consultorio_id,
       notes: appointment.notes || null
     })
     .select()
@@ -71,6 +73,7 @@ export async function getAppointments(): Promise<Appointment[]> {
     patient_id: item.patient_id,
     doctor_id: item.doctor_id,
     service_id: item.service_id,
+    consultorio_id: item.consultorio_id,
     notes: item.notes,
     created_at: item.created_at,
     updated_at: item.updated_at,
@@ -92,6 +95,7 @@ export async function updateAppointment(id: string, appointment: Partial<Appoint
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
       service_id: appointment.service_id,
+      consultorio_id: appointment.consultorio_id,
       notes: appointment.notes
     })
     .eq("id", id)

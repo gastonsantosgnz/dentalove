@@ -57,6 +57,7 @@ interface CalendarData {
 interface FullScreenCalendarProps {
   data: CalendarData[]
   onAddEvent?: () => void
+  onEventClick?: (event: Event) => void
 }
 
 const colStartClasses = [
@@ -217,7 +218,7 @@ const SidebarDatePicker = React.memo(function SidebarDatePicker({
   )
 })
 
-export function FullScreenCalendar({ data, onAddEvent }: FullScreenCalendarProps) {
+export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScreenCalendarProps) {
   const today = startOfToday()
   const [selectedDay, setSelectedDay] = React.useState(today)
   const [currentDate, setCurrentDate] = React.useState(today)
@@ -455,14 +456,13 @@ export function FullScreenCalendar({ data, onAddEvent }: FullScreenCalendarProps
               {days.map((day, dayIdx) => (
                 <div
                   key={`${format(day, 'yyyy-MM-dd')}-${dayIdx}`}
-                  onClick={() => handleDayClick(day)}
                   className={cn(
                     dayIdx === 0 && getDay(day) !== 1 && colStartClasses[getDay(day)],
                     !isEqual(day, selectedDay) &&
                       !isToday(day) &&
                       !isSameMonth(day, currentDate) &&
                       "bg-accent/50 text-muted-foreground",
-                    "relative flex flex-col border-b border-r hover:bg-muted cursor-pointer transition-colors",
+                    "relative flex flex-col border-b border-r transition-colors",
                     isEqual(day, selectedDay) && !isToday(day) && "bg-accent/75",
                     calendarView === "week" ? "min-h-[200px]" : "min-h-[120px]"
                   )}
@@ -486,7 +486,10 @@ export function FullScreenCalendar({ data, onAddEvent }: FullScreenCalendarProps
                       </time>
                     </button>
                   </header>
-                  <div className="flex-1 p-2.5 overflow-y-auto">
+                  <div 
+                    className="flex-1 p-2.5 overflow-y-auto cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => handleDayClick(day)}
+                  >
                     {data
                       .filter((event) => isSameDay(event.day, day))
                       .map((dayData) => (
@@ -494,7 +497,11 @@ export function FullScreenCalendar({ data, onAddEvent }: FullScreenCalendarProps
                           {dayData.events.map((event) => (
                             <div
                               key={event.id}
-                              className="flex flex-col items-start gap-1 rounded-lg border bg-muted/50 p-2 text-xs leading-tight"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onEventClick?.(event)
+                              }}
+                              className="flex flex-col items-start gap-1 rounded-lg border bg-muted/50 p-2 text-xs leading-tight hover:bg-accent hover:border-accent-foreground/20 cursor-pointer transition-all duration-200 hover:shadow-sm hover:scale-[1.02] hover:z-10 relative"
                             >
                               <p className="font-medium leading-none">
                                 {event.name}

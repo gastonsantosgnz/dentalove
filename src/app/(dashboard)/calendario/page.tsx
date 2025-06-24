@@ -7,7 +7,8 @@ import { motion } from "framer-motion"
 
 import { FullScreenCalendar } from "@/components/ui/fullscreen-calendar"
 import { AddAppointmentDialog } from "@/components/calendario/AddAppointmentDialog"
-import { Appointment, getAppointments, createAppointment } from "@/lib/appointmentsService"
+import { EditAppointmentDialog } from "@/components/calendario/EditAppointmentDialog"
+import { Appointment, getAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/lib/appointmentsService"
 import { getPacientes } from "@/lib/pacientesService"
 import { getDoctores } from "@/lib/doctoresService"
 import { getServicios } from "@/lib/serviciosService"
@@ -15,6 +16,9 @@ import { useToast } from "@/components/ui/use-toast"
 import { Paciente, Servicio } from "@/lib/database"
 import { Doctor } from "@/lib/doctoresService"
 import { useConsultorio } from "@/contexts/ConsultorioContext"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 // Define the event interface for our calendar
 interface CalendarEvent {
@@ -72,12 +76,16 @@ function NoConsultorio() {
 // Fetch server data
 export default function CalendarioPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [appointments, setAppointments] = useState<CalendarDay[]>([])
+  const [appointmentsData, setAppointmentsData] = useState<Appointment[]>([])
   const [patients, setPatients] = useState<Paciente[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [services, setServices] = useState<Servicio[]>([])
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("all")
   const { toast } = useToast()
   const { consultorio, isLoading: consultorioLoading } = useConsultorio()
 
@@ -98,9 +106,10 @@ export default function CalendarioPage() {
       const servicesData = await getServicios()
       
       // Transform appointment data for the calendar
-      const calendarData = transformAppointmentsToCalendarData(appointmentsData)
+      const calendarData = transformAppointmentsToCalendarData(appointmentsData, selectedDoctorId)
       
       setAppointments(calendarData)
+      setAppointmentsData(appointmentsData)
       setPatients(patientsData)
       setDoctors(doctorsData)
       setServices(servicesData)
@@ -116,12 +125,17 @@ export default function CalendarioPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [toast, consultorio])
+  }, [toast, consultorio, selectedDoctorId])
   
-  // Transform appointments to calendar data
-  function transformAppointmentsToCalendarData(appointments: Appointment[]): CalendarDay[] {
+  // Transform appointments to calendar data with optional doctor filter
+  function transformAppointmentsToCalendarData(appointments: Appointment[], doctorFilter: string = "all"): CalendarDay[] {
+    // Filter appointments by doctor if a specific doctor is selected
+    const filteredAppointments = doctorFilter === "all" 
+      ? appointments 
+      : appointments.filter(appointment => appointment.doctor_id === doctorFilter)
+    
     // Group appointments by date
-    const eventsByDate = appointments.reduce((acc: Record<string, CalendarEvent[]>, appointment) => {
+    const eventsByDate = filteredAppointments.reduce((acc: Record<string, CalendarEvent[]>, appointment) => {
       const dateStr = appointment.date
       if (!acc[dateStr]) {
         acc[dateStr] = []
@@ -177,6 +191,68 @@ export default function CalendarioPage() {
       })
     }
   }, [consultorio, loadData, toast])
+
+  // Handle clicking on an event
+  const handleEventClick = useCallback((event: any) => {
+    // Find the full appointment data
+    const fullAppointment = appointmentsData.find(apt => apt.id === event.id.toString())
+    if (fullAppointment) {
+      setSelectedAppointment(fullAppointment)
+      setIsEditDialogOpen(true)
+    }
+  }, [appointmentsData])
+
+  // Handle updating an appointment
+  const handleUpdateAppointment = useCallback(async (id: string, appointmentData: Partial<Appointment>) => {
+    try {
+      await updateAppointment(id, appointmentData)
+      
+      toast({
+        title: "Cita actualizada",
+        description: "La cita se ha actualizado correctamente",
+      })
+      
+      // Reload the data to update the calendar
+      await loadData()
+    } catch (error) {
+      console.error("Error updating appointment:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la cita",
+        variant: "destructive"
+      })
+    }
+  }, [loadData, toast])
+
+  // Handle deleting an appointment
+  const handleDeleteAppointment = useCallback(async (id: string) => {
+    try {
+      await deleteAppointment(id)
+      
+      toast({
+        title: "Cita eliminada",
+        description: "La cita se ha eliminado correctamente",
+      })
+      
+      // Reload the data to update the calendar
+      await loadData()
+    } catch (error) {
+      console.error("Error deleting appointment:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la cita",
+        variant: "destructive"
+      })
+    }
+  }, [loadData, toast])
+
+  // Handle doctor filter change
+  const handleDoctorFilterChange = useCallback((doctorId: string) => {
+    setSelectedDoctorId(doctorId)
+    // Re-transform the data with the new filter
+    const calendarData = transformAppointmentsToCalendarData(appointmentsData, doctorId)
+    setAppointments(calendarData)
+  }, [appointmentsData])
   
   // Load initial data on component mount
   useEffect(() => {
@@ -208,12 +284,53 @@ export default function CalendarioPage() {
       className="flex flex-col h-screen w-full"
     >
       <div className="flex flex-col h-full">
+        {/* Doctor Filter */}
+        <Card className="mx-4 mt-4 mb-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Filtros</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 min-w-[200px]">
+                <Label htmlFor="doctor-filter" className="text-sm font-medium whitespace-nowrap">
+                  Doctor:
+                </Label>
+                <Select
+                  value={selectedDoctorId}
+                  onValueChange={handleDoctorFilterChange}
+                >
+                  <SelectTrigger id="doctor-filter" className="flex-1">
+                    <SelectValue placeholder="Selecciona un doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los doctores</SelectItem>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        {doctor.nombre_completo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {selectedDoctorId !== "all" && (
+                <div className="text-sm text-muted-foreground">
+                  Mostrando citas de: <span className="font-medium">
+                    {doctors.find(d => d.id === selectedDoctorId)?.nombre_completo}
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {isLoading ? (
           <CalendarioLoading />
         ) : (
           <FullScreenCalendar 
             data={appointments as any}
             onAddEvent={() => setIsAddDialogOpen(true)}
+            onEventClick={handleEventClick}
           />
         )}
       </div>
@@ -227,6 +344,18 @@ export default function CalendarioPage() {
         doctors={doctors}
         services={services}
         consultorioId={consultorio.id}
+      />
+
+      {/* Edit appointment dialog */}
+      <EditAppointmentDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        appointment={selectedAppointment}
+        onUpdate={handleUpdateAppointment}
+        onDelete={handleDeleteAppointment}
+        patients={patients}
+        doctors={doctors}
+        services={services}
       />
     </motion.div>
   )

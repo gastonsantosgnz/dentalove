@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { useState } from "react"
-import { format } from "date-fns"
+import { useState, useEffect } from "react"
+import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
-import { Clock } from "lucide-react"
+import { Clock, Trash2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -27,10 +27,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Appointment {
+  id: string
   title: string
-  date: Date
+  date: string
   time: string
   patient_id: string
   doctor_id: string
@@ -39,26 +51,29 @@ interface Appointment {
   notes?: string
 }
 
-interface AddAppointmentDialogProps {
+interface EditAppointmentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (appointment: Appointment) => Promise<void>
+  appointment: Appointment | null
+  onUpdate: (id: string, appointment: Partial<Appointment>) => Promise<void>
+  onDelete: (id: string) => Promise<void>
   patients: Array<{ id: string, nombre_completo: string }>
   doctors: Array<{ id: string, nombre_completo: string }>
   services: Array<{ id: string, nombre_servicio: string, duracion: number }>
-  consultorioId: string
 }
 
-export function AddAppointmentDialog({
+export function EditAppointmentDialog({
   open,
   onOpenChange,
-  onSubmit,
+  appointment,
+  onUpdate,
+  onDelete,
   patients,
   doctors,
-  services,
-  consultorioId
-}: AddAppointmentDialogProps) {
+  services
+}: EditAppointmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [title, setTitle] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [time, setTime] = useState("09:00")
@@ -67,30 +82,22 @@ export function AddAppointmentDialog({
   const [serviceId, setServiceId] = useState("")
   const [notes, setNotes] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!title || !selectedDate || !time || !patientId || !doctorId || !serviceId || !consultorioId) {
-      return
+  // Cargar los datos de la cita cuando se abre el modal
+  useEffect(() => {
+    if (appointment && open) {
+      setTitle(appointment.title)
+      setSelectedDate(parseISO(appointment.date))
+      setTime(appointment.time)
+      setPatientId(appointment.patient_id)
+      setDoctorId(appointment.doctor_id)
+      setServiceId(appointment.service_id)
+      setNotes(appointment.notes || "")
     }
-    
-    setIsSubmitting(true)
-    
-    try {
-      const appointment: Appointment = {
-        title,
-        date: selectedDate,
-        time,
-        patient_id: patientId,
-        doctor_id: doctorId,
-        service_id: serviceId,
-        consultorio_id: consultorioId,
-        notes
-      }
-      
-      await onSubmit(appointment)
-      
-      // Reset form after successful submission
+  }, [appointment, open])
+
+  // Resetear el formulario cuando se cierra el modal
+  useEffect(() => {
+    if (!open) {
       setTitle("")
       setSelectedDate(new Date())
       setTime("09:00")
@@ -98,13 +105,54 @@ export function AddAppointmentDialog({
       setDoctorId("")
       setServiceId("")
       setNotes("")
+    }
+  }, [open])
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!appointment || !title || !selectedDate || !time || !patientId || !doctorId || !serviceId) {
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      const updatedAppointment: Partial<Appointment> = {
+        title,
+        date: format(selectedDate, "yyyy-MM-dd"),
+        time,
+        patient_id: patientId,
+        doctor_id: doctorId,
+        service_id: serviceId,
+        notes
+      }
+      
+      await onUpdate(appointment.id, updatedAppointment)
       
       // Close the dialog
       onOpenChange(false)
     } catch (error) {
-      console.error("Error creating appointment:", error)
+      console.error("Error updating appointment:", error)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!appointment) return
+    
+    setIsDeleting(true)
+    
+    try {
+      await onDelete(appointment.id)
+      
+      // Close the dialog
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Error deleting appointment:", error)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -119,22 +167,26 @@ export function AddAppointmentDialog({
     }
   }
 
+  if (!appointment) {
+    return null
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleUpdate}>
           <DialogHeader>
-            <DialogTitle>Nueva Cita</DialogTitle>
+            <DialogTitle>Editar Cita</DialogTitle>
             <DialogDescription>
-              Añade una nueva cita al calendario. Todos los campos marcados con * son obligatorios.
+              Modifica los detalles de la cita. Todos los campos marcados con * son obligatorios.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {/* Title field */}
             <div className="grid gap-2">
-              <Label htmlFor="title">Título *</Label>
+              <Label htmlFor="edit-title">Título *</Label>
               <Input
-                id="title"
+                id="edit-title"
                 placeholder="Consulta general"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -154,10 +206,10 @@ export function AddAppointmentDialog({
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="time">Hora *</Label>
+                <Label htmlFor="edit-time">Hora *</Label>
                 <div className="relative">
                   <Input
-                    id="time"
+                    id="edit-time"
                     type="time"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
@@ -170,7 +222,7 @@ export function AddAppointmentDialog({
             
             {/* Patient selection */}
             <div className="grid gap-2">
-              <Label htmlFor="patient">Paciente *</Label>
+              <Label htmlFor="edit-patient">Paciente *</Label>
               <Select value={patientId} onValueChange={setPatientId} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un paciente" />
@@ -187,7 +239,7 @@ export function AddAppointmentDialog({
             
             {/* Doctor selection */}
             <div className="grid gap-2">
-              <Label htmlFor="doctor">Doctor *</Label>
+              <Label htmlFor="edit-doctor">Doctor *</Label>
               <Select value={doctorId} onValueChange={setDoctorId} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un doctor" />
@@ -204,7 +256,7 @@ export function AddAppointmentDialog({
             
             {/* Service selection */}
             <div className="grid gap-2">
-              <Label htmlFor="service">Servicio *</Label>
+              <Label htmlFor="edit-service">Servicio *</Label>
               <Select value={serviceId} onValueChange={setServiceId} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un servicio" />
@@ -221,26 +273,62 @@ export function AddAppointmentDialog({
             
             {/* Notes textarea */}
             <div className="grid gap-2">
-              <Label htmlFor="notes">Notas (opcional)</Label>
+              <Label htmlFor="edit-notes">Notas (opcional)</Label>
               <Input
-                id="notes"
+                id="edit-notes"
                 placeholder="Notas adicionales sobre la cita"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Guardando..." : "Guardar cita"}
-            </Button>
+          <DialogFooter className="flex justify-between">
+            <div className="flex gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar cita?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. La cita será eliminada permanentemente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? "Eliminando..." : "Eliminar"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -12,4 +12,5 @@ export * from "./pagination";
 export * from "./popover";
 export * from "./select";
 export * from "./table";
-export * from "./textarea"; 
+export * from "./textarea";
+export * from "./time-picker"; 

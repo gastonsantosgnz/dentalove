@@ -23,7 +23,10 @@ import {
   ChevronRightIcon,
   PlusCircleIcon,
   CalendarIcon,
-  Clock
+  Clock,
+  ChevronDown,
+  Users,
+  Star
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -34,6 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 
 // Tipo de visualización del calendario
@@ -47,6 +51,7 @@ interface Event {
   patient?: string
   doctor?: string
   service?: string
+  is_first_visit?: boolean
 }
 
 interface CalendarData {
@@ -54,10 +59,19 @@ interface CalendarData {
   events: Event[]
 }
 
+interface Doctor {
+  id: string
+  nombre_completo: string
+}
+
 interface FullScreenCalendarProps {
   data: CalendarData[]
   onAddEvent?: () => void
   onEventClick?: (event: Event) => void
+  onDayDoubleClick?: (date: Date) => void
+  doctors?: Doctor[]
+  selectedDoctorIds?: string[]
+  onDoctorFilterChange?: (doctorIds: string[]) => void
 }
 
 const colStartClasses = [
@@ -218,13 +232,21 @@ const SidebarDatePicker = React.memo(function SidebarDatePicker({
   )
 })
 
-export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScreenCalendarProps) {
+export function FullScreenCalendar({ 
+  data, 
+  onAddEvent, 
+  onEventClick, 
+  onDayDoubleClick, 
+  doctors = [], 
+  selectedDoctorIds = [], 
+  onDoctorFilterChange 
+}: FullScreenCalendarProps) {
+  const isDesktop = useIsDesktop()
   const today = startOfToday()
   const [selectedDay, setSelectedDay] = React.useState(today)
   const [currentDate, setCurrentDate] = React.useState(today)
   const [calendarView, setCalendarView] = React.useState<CalendarView>("twoWeeks")
-  const isDesktop = useIsDesktop()
-
+  
   // Obtener los días a mostrar según la vista actual
   const days = React.useMemo(() => {
     if (calendarView === "week") {
@@ -309,6 +331,23 @@ export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScree
     setSelectedDay(day)
   }, [])
 
+  const handleDayDoubleClick = React.useCallback((day: Date) => {
+    if (onDayDoubleClick) {
+      onDayDoubleClick(day)
+    }
+  }, [onDayDoubleClick])
+
+  // Handle doctor filter changes
+  const handleDoctorToggle = React.useCallback((doctorId: string) => {
+    if (!onDoctorFilterChange) return
+    
+    const newSelectedIds = selectedDoctorIds.includes(doctorId)
+      ? selectedDoctorIds.filter(id => id !== doctorId)
+      : [...selectedDoctorIds, doctorId]
+    
+    onDoctorFilterChange(newSelectedIds)
+  }, [selectedDoctorIds, onDoctorFilterChange])
+
   // Calcular filas según la vista
   const gridRows = React.useMemo(() => {
     if (calendarView === "week") {
@@ -358,6 +397,35 @@ export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScree
           </div>
 
           <div className="flex flex-col items-center gap-4 md:flex-row md:gap-6">
+            {/* Filtro de doctores */}
+            {doctors.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Users size={16} strokeWidth={2} />
+                    Doctores
+                    <ChevronDown
+                      className="-me-1 ms-2 opacity-60"
+                      size={16}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {doctors.map((doctor) => (
+                    <DropdownMenuCheckboxItem
+                      key={doctor.id}
+                      checked={selectedDoctorIds.includes(doctor.id)}
+                      onCheckedChange={() => handleDoctorToggle(doctor.id)}
+                    >
+                      {doctor.nombre_completo}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {/* Vista del calendario */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -489,6 +557,8 @@ export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScree
                   <div 
                     className="flex-1 p-2.5 overflow-y-auto cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={() => handleDayClick(day)}
+                    onDoubleClick={() => handleDayDoubleClick(day)}
+                    title="Haz doble clic para agendar una nueva cita"
                   >
                     {data
                       .filter((event) => isSameDay(event.day, day))
@@ -501,11 +571,25 @@ export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScree
                                 e.stopPropagation()
                                 onEventClick?.(event)
                               }}
-                              className="flex flex-col items-start gap-1 rounded-lg border bg-muted/50 p-2 text-xs leading-tight hover:bg-accent hover:border-accent-foreground/20 cursor-pointer transition-all duration-200 hover:shadow-sm hover:scale-[1.02] hover:z-10 relative"
+                              className={cn(
+                                "flex flex-col items-start gap-1 rounded-lg border p-2 text-xs leading-tight cursor-pointer transition-all duration-200 hover:shadow-sm hover:scale-[1.02] hover:z-10 relative",
+                                event.is_first_visit 
+                                  ? "bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300" 
+                                  : "bg-muted/50 hover:bg-accent hover:border-accent-foreground/20"
+                              )}
                             >
-                              <p className="font-medium leading-none">
-                                {event.name}
-                              </p>
+                              <div className="flex items-center justify-between w-full">
+                                <p className="font-medium leading-none">
+                                  {event.name}
+                                </p>
+                                {event.is_first_visit && (
+                                  <Star 
+                                    size={12} 
+                                    className="text-blue-600 fill-blue-600" 
+                                    title="Primera visita"
+                                  />
+                                )}
+                              </div>
                               <div className="flex items-center gap-1 leading-none text-muted-foreground">
                                 <Clock size={12} strokeWidth={1.5} />
                                 {event.time}
@@ -513,6 +597,11 @@ export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScree
                               {event.patient && (
                                 <p className="text-xs text-muted-foreground">
                                   Paciente: {event.patient}
+                                </p>
+                              )}
+                              {event.is_first_visit && (
+                                <p className="text-xs text-blue-600 font-medium">
+                                  Primera visita
                                 </p>
                               )}
                             </div>
@@ -529,8 +618,10 @@ export function FullScreenCalendar({ data, onAddEvent, onEventClick }: FullScree
               {days.map((day, dayIdx) => (
                 <button
                   onClick={() => handleDayClick(day)}
+                  onDoubleClick={() => handleDayDoubleClick(day)}
                   key={`${format(day, 'yyyy-MM-dd')}-mobile-${dayIdx}`}
                   type="button"
+                  title="Haz doble clic para agendar una nueva cita"
                   className={cn(
                     isEqual(day, selectedDay) && !isToday(day) && "bg-accent text-accent-foreground",
                     !isEqual(day, selectedDay) &&

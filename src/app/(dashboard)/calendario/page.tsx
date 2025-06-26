@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion } from "framer-motion"
@@ -16,9 +16,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Paciente, Servicio } from "@/lib/database"
 import { Doctor } from "@/lib/doctoresService"
 import { useConsultorio } from "@/contexts/ConsultorioContext"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+
 
 // Define the event interface for our calendar
 interface CalendarEvent {
@@ -29,6 +27,7 @@ interface CalendarEvent {
   patient?: string
   doctor?: string
   service?: string
+  is_first_visit?: boolean
 }
 
 // Define calendar data structure for our component
@@ -78,6 +77,7 @@ export default function CalendarioPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [appointments, setAppointments] = useState<CalendarDay[]>([])
@@ -85,7 +85,7 @@ export default function CalendarioPage() {
   const [patients, setPatients] = useState<Paciente[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [services, setServices] = useState<Servicio[]>([])
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("all")
+  const [selectedDoctorIds, setSelectedDoctorIds] = useState<string[]>([])
   const { toast } = useToast()
   const { consultorio, isLoading: consultorioLoading } = useConsultorio()
 
@@ -105,8 +105,8 @@ export default function CalendarioPage() {
       const doctorsData = await getDoctores()
       const servicesData = await getServicios()
       
-      // Transform appointment data for the calendar
-      const calendarData = transformAppointmentsToCalendarData(appointmentsData, selectedDoctorId)
+      // Transform appointment data for the calendar (sin filtro)
+      const calendarData = transformAppointmentsToCalendarData(appointmentsData)
       
       setAppointments(calendarData)
       setAppointmentsData(appointmentsData)
@@ -125,17 +125,13 @@ export default function CalendarioPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [toast, consultorio, selectedDoctorId])
+  }, [toast, consultorio])
   
-  // Transform appointments to calendar data with optional doctor filter
-  function transformAppointmentsToCalendarData(appointments: Appointment[], doctorFilter: string = "all"): CalendarDay[] {
-    // Filter appointments by doctor if a specific doctor is selected
-    const filteredAppointments = doctorFilter === "all" 
-      ? appointments 
-      : appointments.filter(appointment => appointment.doctor_id === doctorFilter)
+  // Transform appointments to calendar data
+  function transformAppointmentsToCalendarData(appointments: Appointment[]): CalendarDay[] {
     
     // Group appointments by date
-    const eventsByDate = filteredAppointments.reduce((acc: Record<string, CalendarEvent[]>, appointment) => {
+    const eventsByDate = appointments.reduce((acc: Record<string, CalendarEvent[]>, appointment) => {
       const dateStr = appointment.date
       if (!acc[dateStr]) {
         acc[dateStr] = []
@@ -148,7 +144,8 @@ export default function CalendarioPage() {
         datetime: `${appointment.date}T${appointment.time}`,
         patient: appointment.patient_nombre,
         doctor: appointment.doctor_nombre,
-        service: appointment.service_nombre
+        service: appointment.service_nombre,
+        is_first_visit: appointment.is_first_visit
       })
       
       return acc
@@ -202,6 +199,12 @@ export default function CalendarioPage() {
     }
   }, [appointmentsData])
 
+  // Handle double-clicking on a day
+  const handleDayDoubleClick = useCallback((date: Date) => {
+    setSelectedDate(date)
+    setIsAddDialogOpen(true)
+  }, [])
+
   // Handle updating an appointment
   const handleUpdateAppointment = useCallback(async (id: string, appointmentData: Partial<Appointment>) => {
     try {
@@ -247,12 +250,27 @@ export default function CalendarioPage() {
   }, [loadData, toast])
 
   // Handle doctor filter change
-  const handleDoctorFilterChange = useCallback((doctorId: string) => {
-    setSelectedDoctorId(doctorId)
-    // Re-transform the data with the new filter
-    const calendarData = transformAppointmentsToCalendarData(appointmentsData, doctorId)
-    setAppointments(calendarData)
-  }, [appointmentsData])
+  const handleDoctorFilterChange = useCallback((doctorIds: string[]) => {
+    setSelectedDoctorIds(doctorIds)
+  }, [])
+
+  // Filter appointments data based on selected doctors
+  const filteredAppointments = useMemo(() => {
+    if (selectedDoctorIds.length === 0) {
+      return appointments
+    }
+    
+    return appointments.map(calendarDay => ({
+      ...calendarDay,
+      events: calendarDay.events.filter(event => 
+        selectedDoctorIds.some(doctorId => 
+          appointmentsData.find(apt => 
+            apt.id === event.id.toString() && apt.doctor_id === doctorId
+          )
+        )
+      )
+    })).filter(calendarDay => calendarDay.events.length > 0)
+  }, [appointments, selectedDoctorIds, appointmentsData])
   
   // Load initial data on component mount
   useEffect(() => {
@@ -284,53 +302,17 @@ export default function CalendarioPage() {
       className="flex flex-col h-screen w-full"
     >
       <div className="flex flex-col h-full">
-        {/* Doctor Filter */}
-        <Card className="mx-4 mt-4 mb-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Filtros</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 min-w-[200px]">
-                <Label htmlFor="doctor-filter" className="text-sm font-medium whitespace-nowrap">
-                  Doctor:
-                </Label>
-                <Select
-                  value={selectedDoctorId}
-                  onValueChange={handleDoctorFilterChange}
-                >
-                  <SelectTrigger id="doctor-filter" className="flex-1">
-                    <SelectValue placeholder="Selecciona un doctor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los doctores</SelectItem>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.id}>
-                        {doctor.nombre_completo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {selectedDoctorId !== "all" && (
-                <div className="text-sm text-muted-foreground">
-                  Mostrando citas de: <span className="font-medium">
-                    {doctors.find(d => d.id === selectedDoctorId)?.nombre_completo}
-                  </span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
         {isLoading ? (
           <CalendarioLoading />
         ) : (
           <FullScreenCalendar 
-            data={appointments as any}
+            data={filteredAppointments as any}
             onAddEvent={() => setIsAddDialogOpen(true)}
             onEventClick={handleEventClick}
+            onDayDoubleClick={handleDayDoubleClick}
+            doctors={doctors}
+            selectedDoctorIds={selectedDoctorIds}
+            onDoctorFilterChange={handleDoctorFilterChange}
           />
         )}
       </div>
@@ -338,12 +320,18 @@ export default function CalendarioPage() {
       {/* Add appointment dialog */}
       <AddAppointmentDialog
         open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddDialogOpen(open)
+          if (!open) {
+            setSelectedDate(null) // Reset selected date when dialog closes
+          }
+        }}
         onSubmit={handleCreateAppointment}
         patients={patients}
         doctors={doctors}
         services={services}
         consultorioId={consultorio.id}
+        initialDate={selectedDate}
       />
 
       {/* Edit appointment dialog */}

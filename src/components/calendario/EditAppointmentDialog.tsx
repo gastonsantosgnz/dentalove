@@ -43,7 +43,6 @@ import {
 
 interface Appointment {
   id: string
-  title: string
   date: string
   time: string
   patient_id: string
@@ -77,7 +76,6 @@ export function EditAppointmentDialog({
 }: EditAppointmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [title, setTitle] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [time, setTime] = useState("09:00")
   const [patientId, setPatientId] = useState("")
@@ -91,7 +89,6 @@ export function EditAppointmentDialog({
     if (appointment && open && patients.length > 0 && doctors.length > 0 && services.length > 0) {
       // Use setTimeout to ensure the Select components are ready
       setTimeout(() => {
-        setTitle(appointment.title)
         setSelectedDate(parseISO(appointment.date))
         setTime(appointment.time)
         setPatientId(appointment.patient_id)
@@ -106,7 +103,6 @@ export function EditAppointmentDialog({
   // Resetear el formulario cuando se cierra el modal
   useEffect(() => {
     if (!open) {
-      setTitle("")
       setSelectedDate(new Date())
       setTime("09:00")
       setPatientId("")
@@ -120,7 +116,7 @@ export function EditAppointmentDialog({
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!appointment || !title || !selectedDate || !time || !patientId || !doctorId || !serviceId) {
+    if (!appointment || !selectedDate || !time || !patientId || !doctorId || !serviceId) {
       return
     }
     
@@ -128,7 +124,6 @@ export function EditAppointmentDialog({
     
     try {
       const updatedAppointment: Partial<Appointment> = {
-        title,
         date: format(selectedDate, "yyyy-MM-dd"),
         time,
         patient_id: patientId,
@@ -192,18 +187,6 @@ export function EditAppointmentDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Title field */}
-            <div className="grid gap-2">
-              <Label htmlFor="edit-title">Título *</Label>
-              <Input
-                id="edit-title"
-                placeholder="Consulta general"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
-            
             {/* Date and time */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

@@ -87,18 +87,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getPatientTreatmentPlans } from "@/lib/treatmentPlansStorage";
 import { getPatientType } from "@/components/AddPatientDialog";
 import { RowActions } from "@/components/RowActions";
-import { Paciente } from "@/lib/database";
+import { Paciente, Servicio } from "@/lib/database";
 import { 
   getPacientes, 
   createPaciente, 
   updatePaciente, 
   deletePaciente as deleteSupabasePaciente 
 } from "@/lib/pacientesService";
+import { getDoctores, Doctor } from "@/lib/doctoresService";
+import { getServicios } from "@/lib/serviciosService";
+import { createAppointment } from "@/lib/appointmentsService";
+import { useConsultorio } from "@/contexts/ConsultorioContext";
+import { useToast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
 // Dynamically import heavy components
 const AddPatientDialog = dynamic(() => import("@/components/AddPatientDialog").then(mod => mod.AddPatientDialog));
+const AddAppointmentDialog = dynamic(() => import("@/components/calendario/AddAppointmentDialog").then(mod => mod.AddAppointmentDialog));
 
 type Item = Paciente & {
   tipoPaciente?: string;
@@ -152,6 +160,12 @@ export default function PacientesTable() {
   // Estado para controlar el diálogo de añadir paciente
   const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
 
+  // Estados para el diálogo de citas
+  const [isAddAppointmentOpen, setIsAddAppointmentOpen] = useState(false);
+  const [selectedPatientForAppointment, setSelectedPatientForAppointment] = useState<Paciente | null>(null);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [services, setServices] = useState<Servicio[]>([]);
+
   const [sorting, setSorting] = useState<SortingState>([
     {
       id: "nombre_completo",
@@ -161,6 +175,11 @@ export default function PacientesTable() {
 
   // Al iniciar, cargar los pacientes de Supabase
   const [data, setData] = useState<Item[]>([]);
+  
+  // Hooks
+  const { consultorio } = useConsultorio();
+  const { toast } = useToast();
+  const router = useRouter();
   
   // Load patients from Supabase
   const loadPacientes = async () => {
@@ -174,10 +193,79 @@ export default function PacientesTable() {
       setIsLoading(false);
     }
   };
+
+  // Load doctors and services for appointment dialog
+  const loadAppointmentData = async () => {
+    try {
+      const [doctorsData, servicesData] = await Promise.all([
+        getDoctores(),
+        getServicios()
+      ]);
+      setDoctors(doctorsData);
+      setServices(servicesData);
+    } catch (error) {
+      console.error("Error loading appointment data:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos para agendar la cita",
+        variant: "destructive"
+      });
+    }
+  };
   
   useEffect(() => {
     loadPacientes();
+    loadAppointmentData();
   }, []);
+
+  // Handle opening appointment dialog for a specific patient
+  const handleAgendarCita = (paciente: Paciente) => {
+    setSelectedPatientForAppointment(paciente);
+    setIsAddAppointmentOpen(true);
+  };
+
+  // Handle appointment creation
+  const handleCreateAppointment = async (appointmentData: any) => {
+    if (!consultorio) {
+      toast({
+        title: "Error",
+        description: "No se pudo obtener la información del consultorio",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Format the date for Supabase
+      const formattedDate = format(appointmentData.date, "yyyy-MM-dd");
+      
+      // Create the appointment
+      await createAppointment({
+        ...appointmentData,
+        date: formattedDate,
+        consultorio_id: consultorio.id
+      });
+      
+      toast({
+        title: "Cita agendada",
+        description: "La cita se ha agendado correctamente",
+      });
+      
+      // Close the dialog
+      setIsAddAppointmentOpen(false);
+      setSelectedPatientForAppointment(null);
+      
+      // Redirect to calendar
+      router.push('/calendario');
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo agendar la cita",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Definir columnas básicas
   const columns: ColumnDef<Item>[] = [
@@ -282,7 +370,8 @@ export default function PacientesTable() {
             } catch (error) {
               console.error('Error deleting patient:', error);
             }
-          }} 
+          }}
+          onAgendarCita={handleAgendarCita}
         />
       ),
       size: 60,
@@ -786,6 +875,28 @@ export default function PacientesTable() {
           }
         }}
       />
+
+      {/* Add Appointment Dialog */}
+      {selectedPatientForAppointment && (
+        <AddAppointmentDialog
+          open={isAddAppointmentOpen}
+          onOpenChange={(open) => {
+            setIsAddAppointmentOpen(open);
+            if (!open) {
+              setSelectedPatientForAppointment(null);
+            }
+          }}
+          onSubmit={handleCreateAppointment}
+          patients={[{
+            id: selectedPatientForAppointment.id,
+            nombre_completo: selectedPatientForAppointment.nombre_completo
+          }]}
+          doctors={doctors}
+          services={services}
+          consultorioId={consultorio?.id || ""}
+          initialDate={null}
+        />
+      )}
     </motion.div>
   );
 } 

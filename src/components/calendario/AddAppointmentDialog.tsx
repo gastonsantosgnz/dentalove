@@ -35,7 +35,6 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Appointment {
-  title: string
   date: Date
   time: string
   patient_id: string
@@ -66,6 +65,7 @@ interface AddAppointmentDialogProps {
   services: Array<{ id: string, nombre_servicio: string, duracion: number }>
   consultorioId: string
   initialDate?: Date | null
+  initialTime?: string | null
 }
 
 export function AddAppointmentDialog({
@@ -76,10 +76,10 @@ export function AddAppointmentDialog({
   doctors,
   services,
   consultorioId,
-  initialDate
+  initialDate,
+  initialTime
 }: AddAppointmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [title, setTitle] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date())
   const [time, setTime] = useState("09:00")
   const [patientId, setPatientId] = useState("")
@@ -146,10 +146,24 @@ export function AddAppointmentDialog({
     }
   }, [initialDate])
 
+  // Effect to update selected time when initialTime changes
+  useEffect(() => {
+    if (initialTime) {
+      setTime(initialTime)
+    }
+  }, [initialTime])
+
+  // Effect to preselect patient when only one is provided
+  useEffect(() => {
+    if (patients.length === 1 && !patientId) {
+      setPatientId(patients[0].id)
+    }
+  }, [patients, patientId])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!title || !selectedDate || !time || !patientId || !doctorId || !serviceId || !consultorioId) {
+    if (!selectedDate || !time || !patientId || !doctorId || !serviceId || !consultorioId) {
       return
     }
     
@@ -157,7 +171,6 @@ export function AddAppointmentDialog({
     
     try {
       const appointment: Appointment = {
-        title,
         date: selectedDate,
         time,
         patient_id: patientId,
@@ -171,7 +184,6 @@ export function AddAppointmentDialog({
       await onSubmit(appointment)
       
       // Reset form after successful submission
-      setTitle("")
       setSelectedDate(new Date())
       setTime("09:00")
       setPatientId("")
@@ -212,18 +224,6 @@ export function AddAppointmentDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Title field */}
-            <div className="grid gap-2">
-              <Label htmlFor="title">Título *</Label>
-              <Input
-                id="title"
-                placeholder="Consulta general"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
-            
             {/* Date and time */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

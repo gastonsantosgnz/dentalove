@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { User } from "lucide-react";
+import { User, Calendar, Clock } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from '@/lib/supabase';
@@ -27,12 +27,28 @@ interface PlanTratamiento {
   fecha: string;
 }
 
+// Interface for appointments
+interface Appointment {
+  id: string;
+  date: string;
+  time: string;
+  patient_id: string;
+  doctor_id: string;
+  service_id: string;
+  notes?: string;
+  is_first_visit?: boolean;
+  patient_nombre?: string;
+  doctor_nombre?: string;
+  service_nombre?: string;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [totalPatients, setTotalPatients] = useState(0);
   const [weeklyGrowthRate, setWeeklyGrowthRate] = useState(0);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [recentPatients, setRecentPatients] = useState<Paciente[]>([]);
+  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   
   const container = {
@@ -117,20 +133,58 @@ export default function DashboardPage() {
         // Sum up all treatment plan costs
         const totalIncome = treatmentPlans.reduce((sum: number, plan: PlanTratamiento) => sum + parseFloat(String(plan.costo_total || '0')), 0);
         
-        // Get recent patients
+        // Get recent patients (reduced to 3)
         const { data: patients, error: patientsError } = await supabase
           .from('pacientes')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(3);
           
         if (patientsError) throw patientsError;
+
+        // Get today's appointments
+        const todayStr = format(today, 'yyyy-MM-dd');
+        const { data: appointments, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select(`
+            id,
+            date,
+            time,
+            patient_id,
+            doctor_id,
+            service_id,
+            notes,
+            is_first_visit,
+            pacientes!inner(nombre_completo),
+            doctores!inner(nombre_completo),
+            servicios!inner(nombre_servicio)
+          `)
+          .eq('date', todayStr)
+          .order('time', { ascending: true });
+
+        if (appointmentsError) throw appointmentsError;
+
+        // Transform appointments data
+        const transformedAppointments = appointments?.map(apt => ({
+          id: apt.id,
+          date: apt.date,
+          time: apt.time,
+          patient_id: apt.patient_id,
+          doctor_id: apt.doctor_id,
+          service_id: apt.service_id,
+          notes: apt.notes,
+          is_first_visit: apt.is_first_visit,
+          patient_nombre: apt.pacientes?.nombre_completo,
+          doctor_nombre: apt.doctores?.nombre_completo,
+          service_nombre: apt.servicios?.nombre_servicio
+        })) || [];
         
         // Update state
         setTotalPatients(patientCount || 0);
         setWeeklyGrowthRate(parseFloat(growthRate.toFixed(1)));
         setMonthlyIncome(totalIncome);
         setRecentPatients(patients || []);
+        setTodayAppointments(transformedAppointments);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -213,48 +267,98 @@ export default function DashboardPage() {
             </motion.div>
           </motion.div>
 
-          {/* Recent patients */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Pacientes Recientes</CardTitle>
-              <Link href="/pacientes" className="text-sm text-primary hover:underline">
-                Ver Todos
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {recentPatients.length > 0 ? (
-                <div className="space-y-4">
-                  {recentPatients.map(patient => (
-                    <div key={patient.id} className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                          {getInitials(patient.nombre_completo)}
+          {/* Recent patients and Today's appointments */}
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            {/* Recent patients */}
+            <Card className="h-fit">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-lg">Pacientes Recientes</CardTitle>
+                <Link href="/pacientes" className="text-sm text-primary hover:underline">
+                  Ver Todos
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {recentPatients.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentPatients.map(patient => (
+                      <div key={patient.id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                            {getInitials(patient.nombre_completo)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{patient.nombre_completo}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(patient.created_at), 'dd MMM', { locale: es })}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-sm">{patient.nombre_completo}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Registrado el {format(new Date(patient.created_at), 'dd MMM yyyy', { locale: es })}
-                          </p>
+                        <Link 
+                          href={`/pacientes/${patient.id}/planes`} 
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Ver
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No hay pacientes recientes</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Today's appointments */}
+            <Card className="h-fit">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-lg">Citas de Hoy</CardTitle>
+                <Link href="/calendario" className="text-sm text-primary hover:underline">
+                  Ver Calendario
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {todayAppointments.length > 0 ? (
+                  <div className="space-y-3">
+                    {todayAppointments.slice(0, 4).map(appointment => (
+                      <div key={appointment.id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600 text-xs font-medium">
+                            <Clock className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{appointment.patient_nombre || 'Paciente'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {appointment.time} • {appointment.service_nombre}
+                              {appointment.is_first_visit && (
+                                <span className="ml-1 px-1 py-0.5 bg-green-100 text-green-600 rounded text-xs">1ra</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Dr. {appointment.doctor_nombre?.split(' ')[0] || 'N/A'}
                         </div>
                       </div>
-                      <Link 
-                        href={`/pacientes/${patient.id}/planes`} 
-                        className="text-xs text-primary hover:underline"
-                      >
-                        Ver detalles
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <User className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>No hay pacientes recientes para mostrar</p>
-                  <p className="text-sm mt-1">Los pacientes registrados aparecerán aquí</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                    {todayAppointments.length > 4 && (
+                      <div className="text-xs text-center text-muted-foreground pt-2 border-t">
+                        +{todayAppointments.length - 4} citas más
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No hay citas programadas</p>
+                    <p className="text-xs mt-1">para el día de hoy</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </ProtectedRoute>

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Edit, MoreHorizontal, Trash, FileText, PlusCircle } from "lucide-react";
+import { Edit, MoreHorizontal, Trash, FileText, PlusCircle, Calendar } from "lucide-react";
 import { getPatientType } from "@/components/AddPatientDialog";
 import Link from 'next/link';
 import { EditPatientDialog } from "@/components/EditPatientDialog";
@@ -22,9 +22,10 @@ interface RowActionsProps {
   row: Row<Paciente>;
   onPacienteUpdated: (paciente: Paciente) => void;
   onPacienteDeleted: (id: string) => void;
+  onAgendarCita?: (paciente: Paciente) => void;
 }
 
-export function RowActions({ row, onPacienteUpdated, onPacienteDeleted }: RowActionsProps) {
+export function RowActions({ row, onPacienteUpdated, onPacienteDeleted, onAgendarCita }: RowActionsProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isMounted = useRef(true);
@@ -45,6 +46,12 @@ export function RowActions({ row, onPacienteUpdated, onPacienteDeleted }: RowAct
       setIsDeleteDialogOpen(false);
     }
   }, [row.original.id, onPacienteDeleted]);
+
+  const handleAgendarCita = useCallback(() => {
+    if (onAgendarCita) {
+      onAgendarCita(row.original);
+    }
+  }, [onAgendarCita, row.original]);
 
   // Cleanup en desmontaje
   React.useEffect(() => {
@@ -69,6 +76,12 @@ export function RowActions({ row, onPacienteUpdated, onPacienteDeleted }: RowAct
               <Edit className="mr-2 h-4 w-4" />
               <span>Editar</span>
             </DropdownMenuItem>
+            {onAgendarCita && (
+              <DropdownMenuItem onClick={handleAgendarCita}>
+                <Calendar className="mr-2 h-4 w-4" />
+                <span>Agendar Cita</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

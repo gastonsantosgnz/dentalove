@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { format, parseISO } from "date-fns"
+import { format, parseISO, eachHourOfInterval, setHours } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion } from "framer-motion"
 
@@ -17,6 +17,37 @@ import { Paciente, Servicio } from "@/lib/database"
 import { Doctor } from "@/lib/doctoresService"
 import { useConsultorio } from "@/contexts/ConsultorioContext"
 
+// Helper function to get working hours for each day of the week
+function getWorkingHours(dayIndex: number): string[] {
+  const baseDate = new Date(2023, 0, 1) // Use a reference date
+  
+  switch (dayIndex) {
+    case 0: // Sunday
+      return []
+    case 1: // Monday
+    case 2: // Tuesday
+    case 3: // Wednesday
+    case 4: // Thursday
+    case 5: // Friday
+      const hours = eachHourOfInterval({
+        start: setHours(baseDate, 9),
+        end: setHours(baseDate, 17)
+      }).map(hour => format(hour, 'HH:mm'))
+      // Add 18:00 manually since eachHourOfInterval doesn't include the end hour
+      hours.push('18:00')
+      return hours
+    case 6: // Saturday
+      const saturdayHours = eachHourOfInterval({
+        start: setHours(baseDate, 9),
+        end: setHours(baseDate, 13)
+      }).map(hour => format(hour, 'HH:mm'))
+      // Add 14:00 manually since eachHourOfInterval doesn't include the end hour
+      saturdayHours.push('14:00')
+      return saturdayHours
+    default:
+      return []
+  }
+}
 
 // Define the event interface for our calendar
 interface CalendarEvent {
@@ -78,6 +109,7 @@ export default function CalendarioPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedTime, setSelectedTime] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [appointments, setAppointments] = useState<CalendarDay[]>([])
@@ -88,6 +120,15 @@ export default function CalendarioPage() {
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<string[]>([])
   const { toast } = useToast()
   const { consultorio, isLoading: consultorioLoading } = useConsultorio()
+
+  // Compute working hours map for each day of the week
+  const workingHours = useMemo(() => {
+    const hours: Record<number, string[]> = {}
+    for (let i = 0; i <= 6; i++) {
+      hours[i] = getWorkingHours(i)
+    }
+    return hours
+  }, [])
 
   // Load all data we need for the calendar
   const loadData = useCallback(async () => {
@@ -200,8 +241,9 @@ export default function CalendarioPage() {
   }, [appointmentsData])
 
   // Handle double-clicking on a day
-  const handleDayDoubleClick = useCallback((date: Date) => {
+  const handleDayDoubleClick = useCallback((date: Date, time?: string) => {
     setSelectedDate(date)
+    setSelectedTime(time || null)
     setIsAddDialogOpen(true)
   }, [])
 
@@ -313,6 +355,7 @@ export default function CalendarioPage() {
             doctors={doctors}
             selectedDoctorIds={selectedDoctorIds}
             onDoctorFilterChange={handleDoctorFilterChange}
+            workingHours={workingHours}
           />
         )}
       </div>
@@ -324,6 +367,7 @@ export default function CalendarioPage() {
           setIsAddDialogOpen(open)
           if (!open) {
             setSelectedDate(null) // Reset selected date when dialog closes
+            setSelectedTime(null) // Reset selected time when dialog closes
           }
         }}
         onSubmit={handleCreateAppointment}
@@ -332,6 +376,7 @@ export default function CalendarioPage() {
         services={services}
         consultorioId={consultorio.id}
         initialDate={selectedDate}
+        initialTime={selectedTime}
       />
 
       {/* Edit appointment dialog */}

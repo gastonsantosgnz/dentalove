@@ -68,10 +68,11 @@ interface FullScreenCalendarProps {
   data: CalendarData[]
   onAddEvent?: () => void
   onEventClick?: (event: Event) => void
-  onDayDoubleClick?: (date: Date) => void
+  onDayDoubleClick?: (date: Date, time?: string) => void
   doctors?: Doctor[]
   selectedDoctorIds?: string[]
   onDoctorFilterChange?: (doctorIds: string[]) => void
+  workingHours?: Record<number, string[]>
 }
 
 const colStartClasses = [
@@ -110,6 +111,137 @@ function useIsDesktop() {
 
   return mounted ? isDesktop : false
 }
+
+// Week View with Time Slots Component
+interface WeekViewWithTimeSlotsProps {
+  days: Date[]
+  data: CalendarData[]
+  workingHours: Record<number, string[]>
+  selectedDay: Date
+  currentDate: Date
+  onEventClick?: (event: Event) => void
+  onDayClick: (day: Date) => void
+  onDayDoubleClick: (day: Date, time?: string) => void
+}
+
+const WeekViewWithTimeSlots = React.memo(function WeekViewWithTimeSlots({
+  days,
+  data,
+  workingHours,
+  selectedDay,
+  currentDate,
+  onEventClick,
+  onDayClick,
+  onDayDoubleClick
+}: WeekViewWithTimeSlotsProps) {
+  // Get all unique time slots from working hours
+  const allTimeSlots = React.useMemo(() => {
+    const slots = new Set<string>()
+    Object.values(workingHours).forEach(hours => {
+      hours.forEach(hour => slots.add(hour))
+    })
+    return Array.from(slots).sort()
+  }, [workingHours])
+
+  return (
+    <div className="hidden h-full lg:block overflow-auto">
+      <div className="grid grid-cols-8 border-x min-h-full">
+        {/* Time column */}
+        <div className="border-r bg-muted/30">
+          {allTimeSlots.map((timeSlot) => (
+            <div 
+              key={timeSlot}
+              className="h-20 border-b flex items-center justify-center text-xs text-muted-foreground px-2 font-medium"
+            >
+              {timeSlot}
+            </div>
+          ))}
+        </div>
+
+        {/* Day columns */}
+        {days.map((day, dayIdx) => {
+          const dayOfWeek = getDay(day)
+          const dayWorkingHours = workingHours[dayOfWeek] || []
+          const dayEvents = data.find(d => isSameDay(d.day, day))?.events || []
+
+          return (
+            <div 
+              key={`${format(day, 'yyyy-MM-dd')}-${dayIdx}`}
+              className={cn(
+                "border-r relative",
+                !isSameMonth(day, currentDate) && "bg-accent/50",
+                isEqual(day, selectedDay) && !isToday(day) && "bg-accent/75",
+                dayWorkingHours.length === 0 && "bg-muted/50"
+              )}
+            >
+              
+
+              {/* Time slots */}
+              {allTimeSlots.map((timeSlot) => {
+                const isWorkingHour = dayWorkingHours.includes(timeSlot)
+                const slotEvents = dayEvents.filter(event => event.time === timeSlot)
+
+                return (
+                                    <div
+                    key={timeSlot}
+                    className={cn(
+                      "h-20 border-b relative",
+                      !isWorkingHour && "bg-muted/30",
+                      isWorkingHour && "cursor-pointer hover:bg-muted/20 transition-colors"
+                    )}
+                    onClick={() => isWorkingHour && onDayClick(day)}
+                    onDoubleClick={() => isWorkingHour && onDayDoubleClick(day, timeSlot)}
+                    title={isWorkingHour ? "Haz doble clic para agendar una nueva cita" : "Fuera del horario laboral"}
+                  >
+                    {/* Events in this time slot */}
+                    {slotEvents.map((event, eventIdx) => (
+                      <div
+                        key={event.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEventClick?.(event)
+                        }}
+                        className={cn(
+                          "absolute inset-x-1 top-1 bottom-1 rounded-md border p-1 text-xs cursor-pointer transition-all duration-200 hover:shadow-sm hover:z-10",
+                          event.is_first_visit 
+                            ? "bg-blue-50 border-blue-200 hover:bg-blue-100" 
+                            : "bg-background border-border hover:bg-accent",
+                          eventIdx > 0 && "opacity-75"
+                        )}
+                        style={{ 
+                          left: `${4 + eventIdx * 2}px`,
+                          right: `${4 + eventIdx * 2}px`,
+                          zIndex: 10 - eventIdx
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium leading-none truncate">
+                            {event.name}
+                          </p>
+                          {event.is_first_visit && (
+                            <Star 
+                              size={10} 
+                              className="text-blue-600 fill-blue-600 ml-1 flex-shrink-0" 
+                            />
+                          )}
+                        </div>
+                        {event.patient && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {event.patient}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+})
 
 // Componente para el calendario lateral (date picker)
 const SidebarDatePicker = React.memo(function SidebarDatePicker({ 
@@ -239,7 +371,8 @@ export function FullScreenCalendar({
   onDayDoubleClick, 
   doctors = [], 
   selectedDoctorIds = [], 
-  onDoctorFilterChange 
+  onDoctorFilterChange,
+  workingHours = {} 
 }: FullScreenCalendarProps) {
   const isDesktop = useIsDesktop()
   const today = startOfToday()
@@ -331,9 +464,9 @@ export function FullScreenCalendar({
     setSelectedDay(day)
   }, [])
 
-  const handleDayDoubleClick = React.useCallback((day: Date) => {
+  const handleDayDoubleClick = React.useCallback((day: Date, time?: string) => {
     if (onDayDoubleClick) {
-      onDayDoubleClick(day)
+      onDayDoubleClick(day, time)
     }
   }, [onDayDoubleClick])
 
@@ -502,25 +635,63 @@ export function FullScreenCalendar({
         {/* Calendar Grid */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Week Days Header */}
-          <div className="grid grid-cols-7 border-b text-center text-xs font-semibold leading-6">
-            <div className="border-r py-2.5">Lun</div>
-            <div className="border-r py-2.5">Mar</div>
-            <div className="border-r py-2.5">Mié</div>
-            <div className="border-r py-2.5">Jue</div>
-            <div className="border-r py-2.5">Vie</div>
-            <div className="border-r py-2.5">Sáb</div>
-            <div className="py-2.5">Dom</div>
-          </div>
+          {calendarView === "week" ? (
+            <div className="grid grid-cols-8 border-b text-center text-xs font-semibold">
+              <div className="border-r py-3 flex items-center justify-center font-medium">Hora</div>
+              {days.map((day, dayIdx) => (
+                <div key={`header-${format(day, 'yyyy-MM-dd')}-${dayIdx}`} className={cn("border-r py-3 flex flex-col items-center justify-center gap-1", dayIdx === 6 && "border-r-0")}>
+                  <button
+                    type="button"
+                    onClick={() => handleDayClick(day)}
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold hover:bg-accent transition-colors",
+                      !isToday(day) && !isSameMonth(day, currentDate) && "text-muted-foreground",
+                      !isToday(day) && isSameMonth(day, currentDate) && "text-foreground",
+                      isToday(day) && "bg-primary text-primary-foreground"
+                    )}
+                  >
+                    {format(day, "d")}
+                  </button>
+                  <div className="text-xs font-medium">
+                    {format(day, "EEE", { locale: es })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 border-b text-center text-xs font-semibold leading-6">
+              <div className="border-r py-2.5">Lun</div>
+              <div className="border-r py-2.5">Mar</div>
+              <div className="border-r py-2.5">Mié</div>
+              <div className="border-r py-2.5">Jue</div>
+              <div className="border-r py-2.5">Vie</div>
+              <div className="border-r py-2.5">Sáb</div>
+              <div className="py-2.5">Dom</div>
+            </div>
+          )}
 
           {/* Calendar Days */}
           <div className="flex-1 overflow-hidden">
-            {/* Desktop Grid */}
-            <div 
-              className={cn(
-                "hidden h-full lg:grid lg:grid-cols-7 border-x",
-                `lg:grid-rows-${gridRows}`
-              )}
-            >
+            {calendarView === "week" ? (
+              /* Week View with Time Slots */
+              <WeekViewWithTimeSlots 
+                days={days}
+                data={data}
+                workingHours={workingHours}
+                selectedDay={selectedDay}
+                currentDate={currentDate}
+                onEventClick={onEventClick}
+                onDayClick={handleDayClick}
+                onDayDoubleClick={handleDayDoubleClick}
+              />
+            ) : (
+              /* Traditional Grid View */
+              <div 
+                className={cn(
+                  "hidden h-full lg:grid lg:grid-cols-7 border-x",
+                  `lg:grid-rows-${gridRows}`
+                )}
+              >
               {days.map((day, dayIdx) => (
                 <div
                   key={`${format(day, 'yyyy-MM-dd')}-${dayIdx}`}
@@ -532,7 +703,7 @@ export function FullScreenCalendar({
                       "bg-accent/50 text-muted-foreground",
                     "relative flex flex-col border-b border-r transition-colors",
                     isEqual(day, selectedDay) && !isToday(day) && "bg-accent/75",
-                    calendarView === "week" ? "min-h-[200px]" : "min-h-[120px]"
+                    "min-h-[120px]"
                   )}
                 >
                   <header className="flex items-center justify-between p-2.5">
@@ -586,7 +757,6 @@ export function FullScreenCalendar({
                                   <Star 
                                     size={12} 
                                     className="text-blue-600 fill-blue-600" 
-                                    title="Primera visita"
                                   />
                                 )}
                               </div>
@@ -612,6 +782,7 @@ export function FullScreenCalendar({
                 </div>
               ))}
             </div>
+            )}
 
             {/* Mobile Grid */}
             <div className="grid grid-cols-7 grid-rows-5 border-x lg:hidden">

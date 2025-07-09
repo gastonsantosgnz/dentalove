@@ -48,6 +48,11 @@ interface AddServiceDialogProps {
   open?: boolean;
 }
 
+// Interfaz temporal para el formulario que permite costo como string o number
+interface FormData extends Omit<ServicioCreate, 'costo'> {
+  costo: string | number;
+}
+
 export function AddServiceDialog({
   buttonVariant = "outline",
   buttonText = "Agregar servicio",
@@ -73,9 +78,9 @@ export function AddServiceDialog({
   const [especialidades, setEspecialidades] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tipoPacienteRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState<ServicioCreate>({
+  const [formData, setFormData] = useState<FormData>({
     nombre_servicio: "",
-    costo: 0,
+    costo: "",
     duracion: 30,
     descripcion: "",
     especialidad: "",
@@ -136,12 +141,20 @@ export function AddServiceDialog({
     const { name, value } = e.target;
     
     if (name === "costo" || name === "duracion") {
-      // Ensure value is a positive number
-      const numericValue = Math.max(0, Number(value));
-      setFormData((prev) => ({
-        ...prev,
-        [name]: numericValue,
-      }));
+      // Para el campo costo, si el valor es vacío, mantenerlo vacío
+      if (name === "costo" && value === "") {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: "",
+        }));
+      } else {
+        // Ensure value is a positive number
+        const numericValue = Math.max(0, Number(value));
+        setFormData((prev) => ({
+          ...prev,
+          [name]: numericValue,
+        }));
+      }
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -163,7 +176,12 @@ export function AddServiceDialog({
     e.preventDefault();
     
     // Crear una copia del formulario para evitar mutaciones y problemas de referencia
-    const formDataCopy = JSON.parse(JSON.stringify(formData));
+    const formDataCopy = { ...formData };
+    
+    // Convertir el campo costo a número si está vacío o es string
+    if (formDataCopy.costo === "" || typeof formDataCopy.costo === "string") {
+      formDataCopy.costo = Number(formDataCopy.costo) || 0;
+    }
     
     // Cerrar el diálogo ANTES de enviar los datos para evitar congelamiento
     setOpen(false);
@@ -177,7 +195,7 @@ export function AddServiceDialog({
       // Limpiar el formulario después de enviar
       setFormData({
         nombre_servicio: "",
-        costo: 0,
+        costo: "",
         duracion: 30,
         descripcion: "",
         especialidad: "",

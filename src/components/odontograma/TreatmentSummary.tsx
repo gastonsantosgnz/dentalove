@@ -22,6 +22,7 @@ interface TreatmentSummaryProps {
   customCosts: Record<string, number>;
   handleChangeVersion: (versionId: string) => void;
   handleUpdateStatus: (tooth: string, status: string, color: string, type: "condition" | "treatment", serviceId?: string) => void;
+  handleRemoveTreatment: (tooth: string, treatmentId: string) => void;
   setToothStatus?: React.Dispatch<React.SetStateAction<Record<string, ToothStatus[]>>>;
   setPlanVersions?: React.Dispatch<React.SetStateAction<PlanVersion[]>>;
   toast?: any;
@@ -42,6 +43,7 @@ export function TreatmentSummary({
   customCosts,
   handleChangeVersion,
   handleUpdateStatus,
+  handleRemoveTreatment,
   setToothStatus,
   setPlanVersions,
   toast,
@@ -63,28 +65,6 @@ export function TreatmentSummary({
         "arco-inferior": "área Arco Inferior",
         "supernumerario": "área Diente Supernumerario"
       }[tooth] : `diente ${tooth}`}?`)) {
-      
-      // Actualizar el estado mediante el handleUpdateStatus
-      handleUpdateStatus(tooth, '', '', 'treatment');
-    }
-  };
-  
-  // Función para eliminar un tratamiento específico
-  const removeTreatment = (tooth: string, treatmentId: string) => {
-    // Crear copia del estado actual
-    const newToothStatus = { ...toothStatus };
-    
-    // Si existe el diente
-    if (newToothStatus[tooth]) {
-      // Filtrar para eliminar solo el tratamiento específico
-      newToothStatus[tooth] = newToothStatus[tooth].filter(
-        status => status.id !== treatmentId
-      );
-      
-      // Si no quedan estatuses, eliminar el diente completamente
-      if (newToothStatus[tooth].length === 0) {
-        delete newToothStatus[tooth];
-      }
       
       // Actualizar el estado mediante el handleUpdateStatus
       handleUpdateStatus(tooth, '', '', 'treatment');
@@ -172,7 +152,7 @@ export function TreatmentSummary({
                               </span>
                               <XCircle 
                                 className="h-4 w-4 text-slate-300 hover:text-red-500 cursor-pointer ml-1"
-                                onClick={() => removeTreatment(tooth, treatment.id)}
+                                onClick={() => handleRemoveTreatment(tooth, treatment.id)}
                                 aria-label="Eliminar tratamiento"
                               />
                             </div>

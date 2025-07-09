@@ -143,6 +143,35 @@ const WeekViewWithTimeSlots = React.memo(function WeekViewWithTimeSlots({
     return Array.from(slots).sort()
   }, [workingHours])
 
+  // Helper function to find the appropriate time slot for an event
+  const findTimeSlotForEvent = (eventTime: string, availableSlots: string[]): string | null => {
+    // First, try exact match
+    if (availableSlots.includes(eventTime)) {
+      return eventTime
+    }
+    
+    // If no exact match, find the closest slot that is <= event time
+    const eventMinutes = timeToMinutes(eventTime)
+    let bestSlot = null
+    let bestSlotMinutes = -1
+    
+    for (const slot of availableSlots) {
+      const slotMinutes = timeToMinutes(slot)
+      if (slotMinutes <= eventMinutes && slotMinutes > bestSlotMinutes) {
+        bestSlot = slot
+        bestSlotMinutes = slotMinutes
+      }
+    }
+    
+    return bestSlot
+  }
+
+  // Helper function to convert time string to minutes
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number)
+    return hours * 60 + minutes
+  }
+
   return (
     <div className="hidden h-full lg:block overflow-auto">
       <div className="grid grid-cols-8 border-x min-h-full">
@@ -179,10 +208,14 @@ const WeekViewWithTimeSlots = React.memo(function WeekViewWithTimeSlots({
               {/* Time slots */}
               {allTimeSlots.map((timeSlot) => {
                 const isWorkingHour = dayWorkingHours.includes(timeSlot)
-                const slotEvents = dayEvents.filter(event => event.time === timeSlot)
+                // Find events that should be displayed in this time slot
+                const slotEvents = dayEvents.filter(event => {
+                  const eventSlot = findTimeSlotForEvent(event.time, dayWorkingHours)
+                  return eventSlot === timeSlot
+                })
 
                 return (
-                                    <div
+                  <div
                     key={timeSlot}
                     className={cn(
                       "h-20 border-b relative",
@@ -224,6 +257,9 @@ const WeekViewWithTimeSlots = React.memo(function WeekViewWithTimeSlots({
                               className="text-blue-600 fill-blue-600 ml-1 flex-shrink-0" 
                             />
                           )}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate mt-0.5">
+                          {event.time}
                         </div>
                         {event.patient && (
                           <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -378,7 +414,7 @@ export function FullScreenCalendar({
   const today = startOfToday()
   const [selectedDay, setSelectedDay] = React.useState(today)
   const [currentDate, setCurrentDate] = React.useState(today)
-  const [calendarView, setCalendarView] = React.useState<CalendarView>("twoWeeks")
+  const [calendarView, setCalendarView] = React.useState<CalendarView>("week")
   
   // Obtener los días a mostrar según la vista actual
   const days = React.useMemo(() => {

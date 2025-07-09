@@ -430,29 +430,30 @@ export async function saveCompletePlanTratamiento(
   }>,
   existingPlanId?: string // ID del plan existente para actualizarlo
 ) {
-  let planId: string;
-  let plan: any;
+  try {
+    let planId: string;
+    let plan: any;
 
-  // Objeto para almacenar los estados de progreso de servicios existentes
-  let serviciosProgresoExistentes: Record<string, any> = {};
+    // Objeto para almacenar los estados de progreso de servicios existentes
+    let serviciosProgresoExistentes: Record<string, any> = {};
 
-  // Get consultorio_id from the context if not provided
-  if (!planData.consultorio_id) {
-    try {
-      // Intentar obtener del localStorage
-      if (typeof window !== 'undefined') {
-        const cachedData = localStorage.getItem('userConsultorio');
-        if (cachedData) {
-          const parsedData = JSON.parse(cachedData);
-          if (parsedData.consultorio && parsedData.consultorio.id) {
-            planData.consultorio_id = parsedData.consultorio.id;
+    // Get consultorio_id from the context if not provided
+    if (!planData.consultorio_id) {
+      try {
+        // Intentar obtener del localStorage
+        if (typeof window !== 'undefined') {
+          const cachedData = localStorage.getItem('userConsultorio');
+          if (cachedData) {
+            const parsedData = JSON.parse(cachedData);
+            if (parsedData.consultorio && parsedData.consultorio.id) {
+              planData.consultorio_id = parsedData.consultorio.id;
+            }
           }
         }
+      } catch (error) {
+        console.error('Error getting consultorio_id from cache:', error);
       }
-    } catch (error) {
-      console.error('Error getting consultorio_id from cache:', error);
     }
-  }
 
   // Determinar si estamos creando un nuevo plan o actualizando uno existente
   if (existingPlanId) {
@@ -779,7 +780,11 @@ export async function saveCompletePlanTratamiento(
     }
   }
 
-  return { plan, planId };
+    return { plan, planId };
+  } catch (error) {
+    console.error('Error in saveCompletePlanTratamiento:', error);
+    throw error;
+  }
 }
 
 /**

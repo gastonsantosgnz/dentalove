@@ -26,14 +26,14 @@ export interface Appointment {
 export async function createAppointment(appointment: Omit<Appointment, "id" | "created_at" | "updated_at">): Promise<Appointment> {
   // Prepare the insert data - temporarily exclude is_first_visit until DB migration
   const insertData: any = {
-    title: appointment.title,
-    date: appointment.date,
-    time: appointment.time,
-    patient_id: appointment.patient_id,
-    doctor_id: appointment.doctor_id,
-    service_id: appointment.service_id,
-    consultorio_id: appointment.consultorio_id,
-    notes: appointment.notes || null
+      title: appointment.title,
+      date: appointment.date,
+      time: appointment.time,
+      patient_id: appointment.patient_id,
+      doctor_id: appointment.doctor_id,
+      service_id: appointment.service_id,
+      consultorio_id: appointment.consultorio_id,
+      notes: appointment.notes || null
   }
 
   // Only include is_first_visit if the column exists (after migration)
@@ -83,7 +83,7 @@ export async function getAppointments(): Promise<Appointment[]> {
   const firstVisitData = typeof window !== 'undefined' 
     ? JSON.parse(localStorage.getItem('appointment_first_visits') || '{}') 
     : {}
-
+  
   // Transform the data to match our Appointment interface
   return (data || []).map(item => ({
     id: item.id,
@@ -111,14 +111,14 @@ export async function getAppointments(): Promise<Appointment[]> {
 export async function updateAppointment(id: string, appointment: Partial<Appointment>): Promise<void> {
   // Prepare the update data - temporarily exclude is_first_visit until DB migration
   const updateData: any = {
-    title: appointment.title,
-    date: appointment.date,
-    time: appointment.time,
-    patient_id: appointment.patient_id,
-    doctor_id: appointment.doctor_id,
-    service_id: appointment.service_id,
-    consultorio_id: appointment.consultorio_id,
-    notes: appointment.notes
+      title: appointment.title,
+      date: appointment.date,
+      time: appointment.time,
+      patient_id: appointment.patient_id,
+      doctor_id: appointment.doctor_id,
+      service_id: appointment.service_id,
+      consultorio_id: appointment.consultorio_id,
+      notes: appointment.notes
   }
 
   // Only include is_first_visit if the column exists (after migration)

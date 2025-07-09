@@ -261,6 +261,50 @@ export default function OdontogramArea({
     return servicios.filter(servicio => servicio.especialidad === selectedSpecialty);
   }, [servicios, selectedSpecialty]);
 
+  // Función para eliminar un tratamiento específico
+  const handleRemoveTreatment = useCallback((tooth: string, treatmentId: string) => {
+    // Crear copia del estado actual
+    const newToothStatus = { ...toothStatus };
+    
+    // Si existe el diente
+    if (newToothStatus[tooth]) {
+      // Filtrar para eliminar solo el tratamiento específico
+      newToothStatus[tooth] = newToothStatus[tooth].filter(
+        status => status.id !== treatmentId
+      );
+      
+      // Si no quedan estatuses, eliminar el diente completamente
+      if (newToothStatus[tooth].length === 0) {
+        delete newToothStatus[tooth];
+      }
+      
+      // Actualizar el estado
+      setToothStatus(newToothStatus);
+      
+      // Marcar el plan como modificado
+      setIsPlanModified(true);
+      
+      // Actualizar la versión activa
+      const newVersions = planVersions.map(version => {
+        if (version.isActive) {
+          return {
+            ...version,
+            toothStatus: newToothStatus,
+            totalCost: calculateTotalCost(newToothStatus)
+          };
+        }
+        return version;
+      });
+      
+      setPlanVersions(newVersions);
+      
+      toast({
+        title: "Tratamiento eliminado",
+        description: "El tratamiento se ha eliminado correctamente"
+      });
+    }
+  }, [toothStatus, planVersions, calculateTotalCost, toast]);
+
   // Manejar la actualización del estado de un diente
   const handleUpdateStatus = useCallback((
     tooth: string, 
@@ -520,8 +564,19 @@ export default function OdontogramArea({
       
       // Mostrar mensaje de error más específico
       let errorMessage = "Ocurrió un error. Intente nuevamente.";
-      if ((error as any)?.message?.includes('consultorio_id')) {
-        errorMessage = "Error: No se pudo asignar el consultorio al plan. Verifique que esté asignado a un consultorio.";
+      
+      // Verificar diferentes tipos de errores
+      if (error && typeof error === 'object') {
+        const errorObj = error as any;
+        if (errorObj?.message?.includes('consultorio_id')) {
+          errorMessage = "Error: No se pudo asignar el consultorio al plan. Verifique que esté asignado a un consultorio.";
+        } else if (errorObj?.message) {
+          errorMessage = `Error: ${errorObj.message}`;
+        } else if (errorObj?.details) {
+          errorMessage = `Error: ${errorObj.details}`;
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = `Error: ${error}`;
       }
       
       toast({
@@ -659,6 +714,7 @@ export default function OdontogramArea({
         customCosts={customCosts}
         handleChangeVersion={handleChangeVersion}
         handleUpdateStatus={handleUpdateStatus}
+        handleRemoveTreatment={handleRemoveTreatment}
         isPlanSaved={savedPlanId !== undefined || isEditing}
         toothComments={toothComments}
       />

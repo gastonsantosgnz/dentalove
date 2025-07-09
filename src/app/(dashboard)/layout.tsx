@@ -58,8 +58,8 @@ const DashboardLayout = memo(({
   }, [pathname]);
   
   return (
-    <ServiciosProvider>
-      <ConsultorioProvider>
+    <ConsultorioProvider>
+      <ServiciosProvider>
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
           <div className="lg:pt-2 bg-gray-100 flex-1 overflow-y-auto lg:pl-2">
@@ -72,8 +72,8 @@ const DashboardLayout = memo(({
           </div>
           <Toaster />
         </div>
-      </ConsultorioProvider>
-    </ServiciosProvider>
+      </ServiciosProvider>
+    </ConsultorioProvider>
   );
 });
 

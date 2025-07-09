@@ -34,6 +34,7 @@ export interface Servicio {
   descripcion?: string | null;
   especialidad?: string | null;
   tipo_paciente: string; // 'Adulto' | 'Pediátrico' | 'General'
+  consultorio_id: string;
   created_at?: string;
   updated_at?: string;
 }

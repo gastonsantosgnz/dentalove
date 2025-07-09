@@ -9,10 +9,16 @@ let supabaseClient: ReturnType<typeof createClient> | null = null;
 
 // Función para obtener el cliente de Supabase de forma lazy
 export const getSupabaseClient = () => {
+  console.log('Getting Supabase client...');
+  console.log('supabaseUrl:', supabaseUrl);
+  console.log('supabaseAnonKey exists:', !!supabaseAnonKey);
+  
   // Solo inicializamos el cliente una vez
   if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
     try {
+      console.log('Initializing real Supabase client...');
       supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+      console.log('Real Supabase client initialized successfully');
     } catch (error) {
       console.error('Error initializing Supabase client:', error);
       throw new Error('Failed to initialize Supabase client');
@@ -21,25 +27,6 @@ export const getSupabaseClient = () => {
   
   if (!supabaseClient) {
     console.error('Supabase client not initialized: missing URL or key');
-    // Si estamos en entorno de desarrollo, proporcionar un cliente falso para evitar errores
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        from: () => ({
-          select: () => ({
-            eq: () => ({
-              single: () => ({ data: null, error: { message: 'Fake client' } }),
-              data: null, 
-              error: { message: 'Fake client' }
-            })
-          })
-        }),
-        auth: {
-          getSession: () => Promise.resolve({ data: { session: null } }),
-          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-          signOut: () => Promise.resolve({}),
-        }
-      } as any;
-    }
     throw new Error('Supabase client not initialized');
   }
   

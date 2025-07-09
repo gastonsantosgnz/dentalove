@@ -84,7 +84,7 @@ import {
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useCallback } from "react";
 import { EditServiceDialog } from "@/components/EditServiceDialog";
-import { Servicio } from "@/lib/database";
+import { Servicio, ServicioCreate } from "@/lib/database";
 import { useServicios } from "@/contexts/ServiciosContext";
 import { useToast } from "./ui/use-toast";
 import dynamic from "next/dynamic";
@@ -151,6 +151,7 @@ export default function ServicesTable() {
   
   // Usar el contexto de servicios en lugar de estado local
   const { servicios: data, isLoading, updateService, deleteService, createService } = useServicios();
+  const { toast } = useToast();
 
   const [sorting, setSorting] = useState<SortingState>([
     {
@@ -180,15 +181,24 @@ export default function ServicesTable() {
     }
   }, [deleteService]);
 
-  const handleServiceAdded = useCallback(async (servicio: Servicio) => {
+  const handleServiceAdded = useCallback(async (servicio: ServicioCreate) => {
     try {
       await createService(servicio);
+      toast({
+        title: "Servicio creado",
+        description: "El servicio se ha creado correctamente",
+      });
       return true;
     } catch (error) {
       console.error('Error adding service:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear el servicio",
+        variant: "destructive"
+      });
       return false;
     }
-  }, [createService]);
+  }, [createService, toast]);
   
   // Memoize columns para evitar recreaciones innecesarias
   const columns = useMemo(
@@ -269,13 +279,7 @@ export default function ServicesTable() {
       <AddServiceDialog
         open={isAddServiceOpen}
         onOpenChange={setIsAddServiceOpen}
-        onSubmit={async (serviceData) => {
-          try {
-            await createService(serviceData);
-          } catch (error) {
-            console.error("Error creating service:", error);
-          }
-        }}
+        onSubmit={handleServiceAdded}
       />
 
       {/* Table */}

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Servicio, ServicioCreate, ServicioUpdate } from '@/lib/database';
 import { getServicios, createServicio, updateServicio, deleteServicio as deleteSupabaseServicio } from '@/lib/serviciosService';
+import { useConsultorio } from './ConsultorioContext';
 
 type ServiciosContextType = {
   servicios: Servicio[];
@@ -21,6 +22,7 @@ export function ServiciosProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const isMountedRef = useRef(true);
+  const { consultorio } = useConsultorio();
   
   // Función para cargar los servicios
   const fetchServicios = useCallback(async () => {
@@ -59,8 +61,18 @@ export function ServiciosProvider({ children }: { children: React.ReactNode }) {
   
   // Función para crear un servicio
   const createService = useCallback(async (servicio: ServicioCreate): Promise<Servicio> => {
+    if (!consultorio) {
+      throw new Error('No hay consultorio seleccionado');
+    }
+    
     try {
-      const newService = await createServicio(servicio);
+      // Agregar consultorio_id al servicio
+      const servicioWithConsultorio = {
+        ...servicio,
+        consultorio_id: consultorio.id
+      };
+      
+      const newService = await createServicio(servicioWithConsultorio);
       
       if (isMountedRef.current) {
         // Actualizar el estado local inmediatamente en lugar de recargar todos los datos
@@ -72,7 +84,7 @@ export function ServiciosProvider({ children }: { children: React.ReactNode }) {
       console.error('Error creating servicio:', err);
       throw err instanceof Error ? err : new Error('Error al crear servicio');
     }
-  }, []);
+  }, [consultorio]);
   
   // Función para actualizar un servicio
   const updateService = useCallback(async (id: string, servicio: ServicioUpdate): Promise<Servicio> => {

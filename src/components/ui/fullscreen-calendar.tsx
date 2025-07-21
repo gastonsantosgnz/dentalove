@@ -152,13 +152,13 @@ const WeekViewWithTimeSlots = React.memo(function WeekViewWithTimeSlots({
     
     // If no exact match, find the closest slot that is <= event time
     const eventMinutes = timeToMinutes(eventTime)
-    let bestSlot = null
+    let bestSlot: string | null = null
     let bestSlotMinutes = -1
     
     for (const slot of availableSlots) {
       const slotMinutes = timeToMinutes(slot)
       if (slotMinutes <= eventMinutes && slotMinutes > bestSlotMinutes) {
-        bestSlot = slot
+        bestSlot = slot as string
         bestSlotMinutes = slotMinutes
       }
     }
@@ -211,7 +211,7 @@ const WeekViewWithTimeSlots = React.memo(function WeekViewWithTimeSlots({
                 // Find events that should be displayed in this time slot
                 const slotEvents = dayEvents.filter(event => {
                   const eventSlot = findTimeSlotForEvent(event.time, dayWorkingHours)
-                  return eventSlot === timeSlot
+                  return eventSlot !== null && eventSlot === timeSlot
                 })
 
                 return (

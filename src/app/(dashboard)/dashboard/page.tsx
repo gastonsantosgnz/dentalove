@@ -36,7 +36,6 @@ interface Appointment {
   doctor_id: string;
   service_id: string;
   notes?: string;
-  is_first_visit?: boolean;
   patient_nombre?: string;
   doctor_nombre?: string;
   service_nombre?: string;
@@ -154,7 +153,6 @@ export default function DashboardPage() {
             doctor_id,
             service_id,
             notes,
-            is_first_visit,
             pacientes!inner(nombre_completo),
             doctores!inner(nombre_completo),
             servicios!inner(nombre_servicio)
@@ -173,7 +171,6 @@ export default function DashboardPage() {
           doctor_id: apt.doctor_id,
           service_id: apt.service_id,
           notes: apt.notes,
-          is_first_visit: apt.is_first_visit,
           patient_nombre: apt.pacientes?.nombre_completo,
           doctor_nombre: apt.doctores?.nombre_completo,
           service_nombre: apt.servicios?.nombre_servicio
@@ -332,9 +329,6 @@ export default function DashboardPage() {
                             <p className="font-medium text-sm">{appointment.patient_nombre || 'Paciente'}</p>
                             <p className="text-xs text-muted-foreground">
                               {appointment.time} • {appointment.service_nombre}
-                              {appointment.is_first_visit && (
-                                <span className="ml-1 px-1 py-0.5 bg-green-100 text-green-600 rounded text-xs">1ra</span>
-                              )}
                             </p>
                           </div>
                         </div>

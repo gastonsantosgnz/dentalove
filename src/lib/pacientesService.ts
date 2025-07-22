@@ -18,7 +18,16 @@ export async function getPacientes(): Promise<Paciente[]> {
     throw error;
   }
   
-  return data || [];
+  return (data || []).map((paciente: any) => ({
+    id: String(paciente.id || ''),
+    nombre_completo: String(paciente.nombre_completo || ''),
+    fecha_nacimiento: String(paciente.fecha_nacimiento || ''),
+    celular: paciente.celular ? String(paciente.celular) : undefined,
+    notas: paciente.notas ? String(paciente.notas) : undefined,
+    consultorio_id: String(paciente.consultorio_id || ''),
+    created_at: String(paciente.created_at || ''),
+    updated_at: String(paciente.updated_at || '')
+  }));
 }
 
 /**
@@ -39,7 +48,16 @@ export async function getPacienteById(id: string): Promise<Paciente | null> {
     throw error;
   }
   
-  return data;
+  return data ? {
+    id: String(data.id || ''),
+    nombre_completo: String(data.nombre_completo || ''),
+    fecha_nacimiento: String(data.fecha_nacimiento || ''),
+    celular: data.celular ? String(data.celular) : undefined,
+    notas: data.notas ? String(data.notas) : undefined,
+    consultorio_id: String(data.consultorio_id || ''),
+    created_at: String(data.created_at || ''),
+    updated_at: String(data.updated_at || '')
+  } : null;
 }
 
 /**
@@ -57,7 +75,16 @@ export async function createPaciente(paciente: PacienteCreate): Promise<Paciente
     throw error;
   }
   
-  return data;
+  return {
+    id: String(data.id || ''),
+    nombre_completo: String(data.nombre_completo || ''),
+    fecha_nacimiento: String(data.fecha_nacimiento || ''),
+    celular: data.celular ? String(data.celular) : undefined,
+    notas: data.notas ? String(data.notas) : undefined,
+    consultorio_id: String(data.consultorio_id || ''),
+    created_at: String(data.created_at || ''),
+    updated_at: String(data.updated_at || '')
+  };
 }
 
 /**
@@ -76,7 +103,16 @@ export async function updatePaciente(id: string, paciente: PacienteUpdate): Prom
     throw error;
   }
   
-  return data;
+  return {
+    id: String(data.id || ''),
+    nombre_completo: String(data.nombre_completo || ''),
+    fecha_nacimiento: String(data.fecha_nacimiento || ''),
+    celular: data.celular ? String(data.celular) : undefined,
+    notas: data.notas ? String(data.notas) : undefined,
+    consultorio_id: String(data.consultorio_id || ''),
+    created_at: String(data.created_at || ''),
+    updated_at: String(data.updated_at || '')
+  };
 }
 
 /**

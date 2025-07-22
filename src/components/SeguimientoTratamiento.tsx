@@ -62,6 +62,8 @@ import {
   getPlanesTratamientoPaciente
 } from '@/lib/planesTratamientoService';
 
+import { formatDateLocal, formatDateShort } from "@/lib/formatDate";
+
 interface PlanTratamiento {
   id: string;
   paciente_id: string;
@@ -136,7 +138,14 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
             
             return {
               ...plan,
-              versiones: versiones || []
+              versiones: (versiones || []).map((v: any) => ({
+                id: String(v.id || ''),
+                nombre: String(v.nombre || ''),
+                activa: Boolean(v.activa),
+                costo_total: Number(v.costo_total || 0),
+                plan_id: String(v.plan_id || ''),
+                created_at: String(v.created_at || '')
+              }))
             };
           })
         );
@@ -313,13 +322,8 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
   
   // Formatear fecha
   const formatFecha = (fechaString: string | undefined) => {
-    if (!fechaString) return 'N/A';
-    
-    try {
-      return format(new Date(fechaString), 'dd/MM/yyyy', { locale: es });
-    } catch (e) {
-      return 'Fecha inválida';
-    }
+    if (!fechaString) return 'No definida';
+    return formatDateShort(fechaString);
   };
   
   // Calcular progreso como porcentaje
@@ -353,7 +357,7 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
                 <SelectContent>
                   {planes.map(plan => (
                     <SelectItem key={plan.id} value={plan.id}>
-                      {format(new Date(plan.fecha), 'dd/MM/yyyy', { locale: es })} - ${plan.costo_total.toLocaleString('es-MX')}
+                      {formatDateShort(plan.fecha)} - ${plan.costo_total.toLocaleString('es-MX')}
                     </SelectItem>
                   ))}
                 </SelectContent>

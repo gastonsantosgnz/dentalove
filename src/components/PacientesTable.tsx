@@ -82,12 +82,12 @@ import {
   Trash,
   Activity
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPatientTreatmentPlans } from "@/lib/treatmentPlansStorage";
 import { getPatientType } from "@/components/AddPatientDialog";
 import { RowActions } from "@/components/RowActions";
-import { Paciente, Servicio } from "@/lib/database";
+import { Paciente } from "@/lib/database";
 import { 
   getPacientes, 
   createPaciente, 
@@ -95,7 +95,7 @@ import {
   deletePaciente as deleteSupabasePaciente 
 } from "@/lib/pacientesService";
 import { getDoctores, Doctor } from "@/lib/doctoresService";
-import { getServicios } from "@/lib/serviciosService";
+
 import { createAppointment } from "@/lib/appointmentsService";
 import { useConsultorio } from "@/contexts/ConsultorioContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -164,7 +164,7 @@ export default function PacientesTable() {
   const [isAddAppointmentOpen, setIsAddAppointmentOpen] = useState(false);
   const [selectedPatientForAppointment, setSelectedPatientForAppointment] = useState<Paciente | null>(null);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [services, setServices] = useState<Servicio[]>([]);
+
 
   const [sorting, setSorting] = useState<SortingState>([
     {
@@ -182,7 +182,7 @@ export default function PacientesTable() {
   const router = useRouter();
   
   // Load patients from Supabase
-  const loadPacientes = async () => {
+  const loadPacientes = useCallback(async () => {
     try {
       setIsLoading(true);
       const pacientes = await getPacientes();
@@ -192,17 +192,13 @@ export default function PacientesTable() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  // Load doctors and services for appointment dialog
-  const loadAppointmentData = async () => {
+  // Load doctors for appointment dialog
+  const loadAppointmentData = useCallback(async () => {
     try {
-      const [doctorsData, servicesData] = await Promise.all([
-        getDoctores(),
-        getServicios()
-      ]);
+      const doctorsData = await getDoctores();
       setDoctors(doctorsData);
-      setServices(servicesData);
     } catch (error) {
       console.error("Error loading appointment data:", error);
       toast({
@@ -211,12 +207,12 @@ export default function PacientesTable() {
         variant: "destructive"
       });
     }
-  };
+  }, [toast]);
   
   useEffect(() => {
     loadPacientes();
     loadAppointmentData();
-  }, []);
+  }, [loadPacientes, loadAppointmentData]);
 
   // Handle opening appointment dialog for a specific patient
   const handleAgendarCita = (paciente: Paciente) => {
@@ -892,7 +888,6 @@ export default function PacientesTable() {
             nombre_completo: selectedPatientForAppointment.nombre_completo
           }]}
           doctors={doctors}
-          services={services}
           consultorioId={consultorio?.id || ""}
           initialDate={null}
         />

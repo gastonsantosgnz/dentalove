@@ -142,7 +142,7 @@ export function AddPatientDialog({ onSubmit, open: externalOpen, onOpenChange }:
       }
       
       if (data) {
-        setConsultorioId(data.consultorio_id);
+        setConsultorioId(String(data.consultorio_id || ''));
       }
     } catch (error) {
       console.error('Error fetching consultorio_id:', error);

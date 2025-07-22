@@ -59,10 +59,10 @@ export function MiCuenta() {
       
       if (data) {
         setPerfil({
-          nombre: data.nombre || '',
-          apellido: data.apellido || '',
-          numero_contacto: data.numero_contacto || '',
-          especialidad: data.especialidad || '',
+          nombre: String(data.nombre || ''),
+          apellido: String(data.apellido || ''),
+          numero_contacto: String(data.numero_contacto || ''),
+          especialidad: String(data.especialidad || ''),
         });
       }
       

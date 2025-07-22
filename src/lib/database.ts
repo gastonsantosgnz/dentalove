@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 
 // Extender la interfaz Window para incluir ENV
 declare global {
@@ -83,7 +84,7 @@ export type ZonaCondicionCreate = Omit<ZonaCondicion, 'id' | 'created_at'>;
 export interface ZonaTratamiento {
   id: string;
   zona_id: string;
-  servicio_id: string;
+  servicio_id: string | null;
   nombre_tratamiento: string;
   color: string;
   created_at?: string;
@@ -166,7 +167,7 @@ export class SupabaseRepository implements DataRepository {
   private client;
   
   constructor(supabaseUrl: string, supabaseKey: string) {
-    this.client = createClient(supabaseUrl, supabaseKey);
+    this.client = createClient<Database>(supabaseUrl, supabaseKey);
   }
   
   // Implementación para pacientes

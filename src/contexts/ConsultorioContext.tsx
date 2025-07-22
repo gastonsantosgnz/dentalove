@@ -96,9 +96,9 @@ export function ConsultorioProvider({ children }: { children: React.ReactNode })
       
       if (data && data.consultorios) {
         const consultorioData = {
-          id: data.consultorio_id,
-          nombre: data.consultorios.nombre || '',
-          logo: data.consultorios.logo || '',
+          id: String(data.consultorio_id || ''),
+          nombre: String((data.consultorios as any)?.nombre || ''),
+          logo: String((data.consultorios as any)?.logo || ''),
         };
         
         setConsultorio(consultorioData);

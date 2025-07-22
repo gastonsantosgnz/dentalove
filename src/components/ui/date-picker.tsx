@@ -4,7 +4,7 @@ import * as React from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar as CalendarIcon } from "lucide-react"
-import { CalendarDate, getLocalTimeZone, parseDate, today } from "@internationalized/date"
+import { CalendarDate, DateValue, getLocalTimeZone, parseDate, today } from "@internationalized/date"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -45,14 +45,14 @@ export function DatePicker({
   }, [value])
 
   // Manejar cambio de fecha desde React Aria
-  const handleDateChange = React.useCallback((date: CalendarDate | null) => {
+  const handleDateChange = React.useCallback((date: DateValue) => {
     if (!date) {
       onChange(undefined)
       return
     }
 
     try {
-      // Convertir CalendarDate a Date
+      // Convertir DateValue a Date
       const jsDate = date.toDate(getLocalTimeZone())
       onChange(jsDate)
       setOpen(false)

@@ -11,9 +11,8 @@ import { EditAppointmentDialog } from "@/components/calendario/EditAppointmentDi
 import { Appointment, getAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/lib/appointmentsService"
 import { getPacientes } from "@/lib/pacientesService"
 import { getDoctores } from "@/lib/doctoresService"
-import { getServicios } from "@/lib/serviciosService"
 import { useToast } from "@/components/ui/use-toast"
-import { Paciente, Servicio } from "@/lib/database"
+import { Paciente } from "@/lib/database"
 import { Doctor } from "@/lib/doctoresService"
 import { useConsultorio } from "@/contexts/ConsultorioContext"
 
@@ -116,7 +115,6 @@ export default function CalendarioPage() {
   const [appointmentsData, setAppointmentsData] = useState<Appointment[]>([])
   const [patients, setPatients] = useState<Paciente[]>([])
   const [doctors, setDoctors] = useState<Doctor[]>([])
-  const [services, setServices] = useState<Servicio[]>([])
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<string[]>([])
   const { toast } = useToast()
   const { consultorio, isLoading: consultorioLoading } = useConsultorio()
@@ -141,10 +139,9 @@ export default function CalendarioPage() {
       // Fetch all appointments
       const appointmentsData = await getAppointments()
       
-      // Fetch patients, doctors, and services for the dialog
+      // Fetch patients and doctors for the dialog
       const patientsData = await getPacientes()
       const doctorsData = await getDoctores()
-      const servicesData = await getServicios()
       
       // Transform appointment data for the calendar (sin filtro)
       const calendarData = transformAppointmentsToCalendarData(appointmentsData)
@@ -153,7 +150,6 @@ export default function CalendarioPage() {
       setAppointmentsData(appointmentsData)
       setPatients(patientsData)
       setDoctors(doctorsData)
-      setServices(servicesData)
     } catch (error) {
       console.error("Error loading data:", error)
       const errorMessage = error instanceof Error ? error.message : "Error desconocido"
@@ -185,7 +181,7 @@ export default function CalendarioPage() {
         datetime: `${appointment.date}T${appointment.time}`,
         patient: appointment.patient_nombre,
         doctor: appointment.doctor_nombre,
-        service: appointment.service_nombre,
+        service: appointment.is_first_visit ? 'Primera visita' : (appointment.plan_nombre || 'Plan de tratamiento'),
         is_first_visit: appointment.is_first_visit
       })
       
@@ -373,7 +369,6 @@ export default function CalendarioPage() {
         onSubmit={handleCreateAppointment}
         patients={patients}
         doctors={doctors}
-        services={services}
         consultorioId={consultorio.id}
         initialDate={selectedDate}
         initialTime={selectedTime}
@@ -388,7 +383,6 @@ export default function CalendarioPage() {
         onDelete={handleDeleteAppointment}
         patients={patients}
         doctors={doctors}
-        services={services}
       />
     </motion.div>
   )

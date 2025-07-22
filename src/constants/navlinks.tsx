@@ -5,6 +5,7 @@ import {
   IconArticle,
   IconDental,
   IconCalendar,
+  IconCurrencyDollar,
 } from "@tabler/icons-react";
 
 export const navlinks = [
@@ -27,6 +28,11 @@ export const navlinks = [
     href: "/planes",
     label: "Planes",
     icon: IconArticle,
+  },
+  {
+    href: "/ingresos",
+    label: "Ingresos",
+    icon: IconCurrencyDollar,
   },
   {
     href: "/doctores",

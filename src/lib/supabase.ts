@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 
 // Usamos variables estáticas para el desarrollo, pero en producción usarías variables de entorno
 const supabaseUrl = 'https://qpwtknfbineefqazhmyn.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwd3RrbmZiaW5lZWZxYXpobXluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyNDkyMzAsImV4cCI6MjA2MTgyNTIzMH0.z25NlHRuYsHXaye7jTbeCtNiBXlFS4g4Qg3PRhupUlU';
 
-// Creamos un cliente solo cuando tenemos URL y KEY válidos
-let supabaseClient: ReturnType<typeof createClient> | null = null;
+// Creamos un cliente tipado solo cuando tenemos URL y KEY válidos
+let supabaseClient: ReturnType<typeof createClient<Database>> | null = null;
 
 // Función para obtener el cliente de Supabase de forma lazy
 export const getSupabaseClient = () => {
@@ -17,7 +18,7 @@ export const getSupabaseClient = () => {
   if (!supabaseClient && supabaseUrl && supabaseAnonKey) {
     try {
       console.log('Initializing real Supabase client...');
-      supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+      supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
       console.log('Real Supabase client initialized successfully');
     } catch (error) {
       console.error('Error initializing Supabase client:', error);

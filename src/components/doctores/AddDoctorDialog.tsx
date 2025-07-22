@@ -76,7 +76,7 @@ export function AddDoctorDialog({
       }
       
       if (data) {
-        setConsultorioId(data.consultorio_id);
+        setConsultorioId(String(data.consultorio_id || ''));
       }
     } catch (error) {
       console.error('Error fetching consultorio_id:', error);

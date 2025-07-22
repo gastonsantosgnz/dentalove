@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar, User } from "lucide-react"
 import { getAppointments } from "@/lib/appointmentsService"
+import { getPatientTreatmentPlans } from "@/lib/planes/planesTratamientoService"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -39,7 +40,7 @@ interface Appointment {
   time: string
   patient_id: string
   doctor_id: string
-  service_id: string
+  plan_tratamiento_id?: string
   consultorio_id: string
   notes?: string
   is_first_visit?: boolean
@@ -51,7 +52,7 @@ interface PatientHistory {
   date: string
   time: string
   doctor_nombre: string
-  service_nombre: string
+  plan_nombre?: string
   notes?: string
   is_first_visit?: boolean
 }
@@ -62,7 +63,6 @@ interface AddAppointmentDialogProps {
   onSubmit: (appointment: Appointment) => Promise<void>
   patients: Array<{ id: string, nombre_completo: string }>
   doctors: Array<{ id: string, nombre_completo: string }>
-  services: Array<{ id: string, nombre_servicio: string, duracion: number }>
   consultorioId: string
   initialDate?: Date | null
   initialTime?: string | null
@@ -74,7 +74,6 @@ export function AddAppointmentDialog({
   onSubmit,
   patients,
   doctors,
-  services,
   consultorioId,
   initialDate,
   initialTime
@@ -84,11 +83,13 @@ export function AddAppointmentDialog({
   const [time, setTime] = useState("09:00")
   const [patientId, setPatientId] = useState("")
   const [doctorId, setDoctorId] = useState("")
-  const [serviceId, setServiceId] = useState("")
+  const [planTratamientoId, setPlanTratamientoId] = useState("")
   const [notes, setNotes] = useState("")
   const [isFirstVisit, setIsFirstVisit] = useState(false)
   const [patientHistory, setPatientHistory] = useState<PatientHistory[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [patientPlans, setPatientPlans] = useState<Array<{ id: string, nombre: string, fecha: string }>>([])
+  const [loadingPlans, setLoadingPlans] = useState(false)
 
   // Load patient history when a patient is selected
   const loadPatientHistory = async (selectedPatientId: string) => {
@@ -108,7 +109,7 @@ export function AddAppointmentDialog({
           date: apt.date,
           time: apt.time,
           doctor_nombre: apt.doctor_nombre || 'Doctor no especificado',
-          service_nombre: apt.service_nombre || 'Servicio no especificado',
+          plan_nombre: apt.plan_nombre || 'Plan no especificado',
           notes: apt.notes,
           is_first_visit: apt.is_first_visit
         }))
@@ -123,21 +124,66 @@ export function AddAppointmentDialog({
     }
   }
 
-  // Effect to load history when patient changes
+  // Load patient treatment plans when a patient is selected
+  const loadPatientPlans = async (selectedPatientId: string) => {
+    if (!selectedPatientId) {
+      setPatientPlans([])
+      setPlanTratamientoId("")
+      return
+    }
+
+    setLoadingPlans(true)
+    try {
+      const plans = await getPatientTreatmentPlans(selectedPatientId)
+      const formattedPlans = plans.map(plan => ({
+        id: String(plan.id || ''),
+        nombre: `Plan ${new Date(String(plan.fecha || '')).toLocaleDateString()}`,
+        fecha: String(plan.fecha || '')
+      }))
+      
+      setPatientPlans(formattedPlans)
+      
+      // Si no hay planes, marcar como primera visita automáticamente
+      if (formattedPlans.length === 0) {
+        setIsFirstVisit(true)
+        setPlanTratamientoId("")
+      } else {
+        setIsFirstVisit(false)
+        // Auto-seleccionar el plan más reciente si solo hay uno
+        if (formattedPlans.length === 1) {
+          setPlanTratamientoId(formattedPlans[0].id)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading patient plans:", error)
+      setPatientPlans([])
+      setPlanTratamientoId("")
+      setIsFirstVisit(true)
+    } finally {
+      setLoadingPlans(false)
+    }
+  }
+
+  // Effect to load history and plans when patient changes
   useEffect(() => {
     if (patientId && open) {
       loadPatientHistory(patientId)
+      loadPatientPlans(patientId)
     } else {
       setPatientHistory([])
+      setPatientPlans([])
+      setPlanTratamientoId("")
     }
   }, [patientId, open])
 
-  // Effect to uncheck first visit when patient has history
+  // Effect to manage first visit logic based on plans
   useEffect(() => {
-    if (patientHistory.length > 0 && isFirstVisit) {
+    if (patientPlans.length > 0) {
       setIsFirstVisit(false)
+    } else if (patientId && patientPlans.length === 0 && !loadingPlans) {
+      setIsFirstVisit(true)
     }
-  }, [patientHistory.length, isFirstVisit])
+  }, [patientPlans.length, patientId, loadingPlans])
 
   // Effect to update selected date when initialDate changes
   useEffect(() => {
@@ -163,7 +209,14 @@ export function AddAppointmentDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!selectedDate || !time || !patientId || !doctorId || !serviceId || !consultorioId) {
+    // Para primera visita no se requiere plan de tratamiento
+    // Para citas de seguimiento sí se requiere
+    if (!selectedDate || !time || !patientId || !doctorId || !consultorioId) {
+      return
+    }
+    
+    // Si no es primera visita, debe tener un plan de tratamiento seleccionado
+    if (!isFirstVisit && !planTratamientoId) {
       return
     }
     
@@ -175,7 +228,7 @@ export function AddAppointmentDialog({
         time,
         patient_id: patientId,
         doctor_id: doctorId,
-        service_id: serviceId,
+        plan_tratamiento_id: isFirstVisit ? undefined : planTratamientoId,
         consultorio_id: consultorioId,
         notes,
         is_first_visit: isFirstVisit
@@ -188,10 +241,11 @@ export function AddAppointmentDialog({
       setTime("09:00")
       setPatientId("")
       setDoctorId("")
-      setServiceId("")
+      setPlanTratamientoId("")
       setNotes("")
       setIsFirstVisit(false)
       setPatientHistory([])
+      setPatientPlans([])
       
       // Close the dialog
       onOpenChange(false)
@@ -314,23 +368,51 @@ export function AddAppointmentDialog({
                 id="first-visit"
                 checked={isFirstVisit}
                 onCheckedChange={(checked) => setIsFirstVisit(checked === true)}
-                disabled={patientHistory.length > 0}
+                disabled={patientPlans.length > 0}
               />
               <Label
                 htmlFor="first-visit"
                 className={cn(
                   "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                  patientHistory.length > 0 && "text-muted-foreground"
+                  patientPlans.length > 0 && "text-muted-foreground"
                 )}
               >
                 Es la primera visita del paciente
-                {patientHistory.length > 0 && (
+                {patientPlans.length > 0 && (
                   <span className="text-xs text-muted-foreground ml-2">
-                    (El paciente ya tiene {patientHistory.length} cita{patientHistory.length > 1 ? 's' : ''} anterior{patientHistory.length > 1 ? 'es' : ''})
+                    (El paciente ya tiene {patientPlans.length} plan{patientPlans.length > 1 ? 'es' : ''} de tratamiento)
                   </span>
                 )}
               </Label>
             </div>
+
+            {/* Treatment Plan selection - only show if not first visit */}
+            {!isFirstVisit && (
+              <div className="grid gap-2">
+                <Label htmlFor="plan">Plan de Tratamiento *</Label>
+                {loadingPlans ? (
+                  <div className="h-10 bg-slate-200 rounded-md animate-pulse"></div>
+                ) : (
+                  <Select value={planTratamientoId} onValueChange={setPlanTratamientoId} required={!isFirstVisit}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un plan de tratamiento" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="z-[9999]" side="bottom" sideOffset={5}>
+                      {patientPlans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {patientPlans.length === 0 && !loadingPlans && (
+                  <p className="text-xs text-muted-foreground">
+                    Este paciente no tiene planes de tratamiento. Marca como primera visita para continuar.
+                  </p>
+                )}
+              </div>
+            )}
             
             {/* Doctor selection */}
             <div className="grid gap-2">
@@ -348,23 +430,7 @@ export function AddAppointmentDialog({
                 </SelectContent>
               </Select>
             </div>
-            
-            {/* Service selection */}
-            <div className="grid gap-2">
-              <Label htmlFor="service">Servicio *</Label>
-              <Select value={serviceId} onValueChange={setServiceId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un servicio" />
-                </SelectTrigger>
-                <SelectContent position="popper" className="z-[9999]" side="bottom" sideOffset={5}>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.nombre_servicio} ({service.duracion} min)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
             
             {/* Notes textarea */}
             <div className="grid gap-2">

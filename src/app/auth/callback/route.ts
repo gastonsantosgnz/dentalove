@@ -9,20 +9,20 @@ export async function GET(request: NextRequest) {
   
   if (code) {
     try {
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           cookies: {
-            get(name) {
+            async get(name) {
               return cookieStore.get(name)?.value;
             },
-            set(name, value, options) {
+            async set(name, value, options) {
               cookieStore.set({ name, value, ...options });
             },
-            remove(name, options) {
+            async remove(name, options) {
               cookieStore.set({ name, value: '', ...options, maxAge: 0 });
             },
           },
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Unexpected error in auth callback:', error);
       // Establecer cookie de error
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       cookieStore.set('auth_error', 'unexpected', { maxAge: 60, path: '/' });
       return NextResponse.redirect(new URL('/login', request.url));
     }
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
   // Si no hay código, redirigir al login
   console.log('No code found in auth callback URL');
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   cookieStore.set('auth_error', 'no_code', { maxAge: 60, path: '/' });
   return NextResponse.redirect(new URL('/login', request.url));
 } 

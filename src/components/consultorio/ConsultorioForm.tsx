@@ -94,12 +94,12 @@ export function ConsultorioForm() {
       // Transformar datos para facilitar su uso
       const consultoriosData = data.map(item => {
         return {
-          id: item.consultorio_id,
-          nombre: item.consultorios ? (item.consultorios as any).nombre || '' : '',
-          direccion: item.consultorios ? (item.consultorios as any).direccion || '' : '',
-          telefono: item.consultorios ? (item.consultorios as any).telefono || '' : '',
-          logo: item.consultorios ? (item.consultorios as any).logo || '' : '',
-          rol: item.rol
+          id: String(item.consultorio_id || ''),
+          nombre: String(item.consultorios ? (item.consultorios as any).nombre || '' : ''),
+          direccion: String(item.consultorios ? (item.consultorios as any).direccion || '' : ''),
+          telefono: String(item.consultorios ? (item.consultorios as any).telefono || '' : ''),
+          logo: String(item.consultorios ? (item.consultorios as any).logo || '' : ''),
+          rol: String(item.rol || '')
         };
       });
       
@@ -248,7 +248,7 @@ export function ConsultorioForm() {
       
       // Actualizar la UI
       const nuevoConsultorioCompleto: Consultorio = {
-        id: consultorioData.id,
+        id: String(consultorioData.id || ''),
         nombre: nuevoConsultorio.nombre,
         direccion: nuevoConsultorio.direccion,
         telefono: nuevoConsultorio.telefono,
@@ -257,7 +257,7 @@ export function ConsultorioForm() {
       };
       
       setConsultorios([...consultorios, nuevoConsultorioCompleto]);
-      setConsultorioSeleccionado(consultorioData.id);
+      setConsultorioSeleccionado(String(consultorioData.id || ''));
       setFormData({
         nombre: nuevoConsultorio.nombre,
         direccion: nuevoConsultorio.direccion,

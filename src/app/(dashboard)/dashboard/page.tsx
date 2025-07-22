@@ -34,11 +34,12 @@ interface Appointment {
   time: string;
   patient_id: string;
   doctor_id: string;
-  service_id: string;
+  plan_tratamiento_id?: string | null;
   notes?: string;
+  is_first_visit?: boolean;
   patient_nombre?: string;
   doctor_nombre?: string;
-  service_nombre?: string;
+  plan_nombre?: string;
 }
 
 export default function DashboardPage() {
@@ -107,8 +108,8 @@ export default function DashboardPage() {
         if (lastWeekError) throw lastWeekError;
         
         // Calculate growth rate
-        const thisWeekCount = thisWeekData.length;
-        const lastWeekCount = lastWeekData.length;
+        const thisWeekCount = thisWeekData?.length || 0;
+        const lastWeekCount = lastWeekData?.length || 0;
         
         let growthRate = 0;
         if (lastWeekCount > 0) {
@@ -130,12 +131,12 @@ export default function DashboardPage() {
         if (plansError) throw plansError;
         
         // Sum up all treatment plan costs
-        const totalIncome = treatmentPlans.reduce((sum: number, plan: PlanTratamiento) => sum + parseFloat(String(plan.costo_total || '0')), 0);
+        const totalIncome = treatmentPlans.reduce((sum: number, plan: { costo_total: unknown }) => sum + parseFloat(String(plan.costo_total || '0')), 0);
         
         // Get recent patients (reduced to 3)
         const { data: patients, error: patientsError } = await supabase
           .from('pacientes')
-          .select('*')
+          .select('id, nombre_completo, fecha_nacimiento, celular, created_at')
           .order('created_at', { ascending: false })
           .limit(3);
           
@@ -151,36 +152,77 @@ export default function DashboardPage() {
             time,
             patient_id,
             doctor_id,
-            service_id,
+            plan_tratamiento_id,
             notes,
-            pacientes!inner(nombre_completo),
-            doctores!inner(nombre_completo),
-            servicios!inner(nombre_servicio)
+            is_first_visit
           `)
           .eq('date', todayStr)
           .order('time', { ascending: true });
 
         if (appointmentsError) throw appointmentsError;
 
-        // Transform appointments data
-        const transformedAppointments = appointments?.map(apt => ({
-          id: apt.id,
-          date: apt.date,
-          time: apt.time,
-          patient_id: apt.patient_id,
-          doctor_id: apt.doctor_id,
-          service_id: apt.service_id,
-          notes: apt.notes,
-          patient_nombre: apt.pacientes?.nombre_completo,
-          doctor_nombre: apt.doctores?.nombre_completo,
-          service_nombre: apt.servicios?.nombre_servicio
-        })) || [];
+        // Get additional data for appointments if they exist
+        let transformedAppointments: Appointment[] = [];
+        
+        if (appointments && appointments.length > 0) {
+          // Get patient names
+          const patientIds = Array.from(new Set(appointments.map(apt => apt.patient_id)));
+          const { data: patientsData } = await supabase
+            .from('pacientes')
+            .select('id, nombre_completo')
+            .in('id', patientIds);
+
+          // Get doctor names
+          const doctorIds = Array.from(new Set(appointments.map(apt => apt.doctor_id)));
+          const { data: doctorsData } = await supabase
+            .from('doctores')
+            .select('id, nombre_completo')
+            .in('id', doctorIds);
+
+          // Get plan names for appointments that have plans
+          const planIds = Array.from(new Set(appointments.filter(apt => apt.plan_tratamiento_id).map(apt => apt.plan_tratamiento_id)));
+          let plansData: any[] = [];
+          if (planIds.length > 0) {
+            const { data } = await supabase
+              .from('planes_tratamiento')
+              .select('id, fecha')
+              .in('id', planIds);
+            plansData = data || [];
+          }
+
+          // Transform appointments data with joined information
+          transformedAppointments = appointments.map(apt => {
+            const patient = patientsData?.find(p => p.id === apt.patient_id);
+            const doctor = doctorsData?.find(d => d.id === apt.doctor_id);
+            const plan = plansData?.find(p => p.id === apt.plan_tratamiento_id);
+
+            return {
+              id: String(apt.id || ''),
+              date: String(apt.date || ''),
+              time: String(apt.time || ''),
+              patient_id: String(apt.patient_id || ''),
+              doctor_id: String(apt.doctor_id || ''),
+              plan_tratamiento_id: apt.plan_tratamiento_id ? String(apt.plan_tratamiento_id) : null,
+              notes: String(apt.notes || ''),
+              is_first_visit: Boolean(apt.is_first_visit),
+              patient_nombre: String(patient?.nombre_completo || ''),
+              doctor_nombre: String(doctor?.nombre_completo || ''),
+              plan_nombre: plan ? `Plan ${new Date(plan.fecha).toLocaleDateString()}` : undefined
+            };
+          });
+        }
         
         // Update state
         setTotalPatients(patientCount || 0);
         setWeeklyGrowthRate(parseFloat(growthRate.toFixed(1)));
         setMonthlyIncome(totalIncome);
-        setRecentPatients(patients || []);
+        setRecentPatients((patients || []).map(p => ({
+          id: String(p.id || ''),
+          nombre_completo: String(p.nombre_completo || ''),
+          fecha_nacimiento: String(p.fecha_nacimiento || ''),
+          celular: String(p.celular || ''),
+          created_at: String(p.created_at || '')
+        })));
         setTodayAppointments(transformedAppointments);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -328,7 +370,7 @@ export default function DashboardPage() {
                           <div>
                             <p className="font-medium text-sm">{appointment.patient_nombre || 'Paciente'}</p>
                             <p className="text-xs text-muted-foreground">
-                              {appointment.time} • {appointment.service_nombre}
+                              {appointment.time} • {appointment.is_first_visit ? 'Primera visita' : (appointment.plan_nombre || 'Plan de tratamiento')}
                             </p>
                           </div>
                         </div>

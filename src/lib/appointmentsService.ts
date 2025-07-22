@@ -8,7 +8,7 @@ export interface Appointment {
   time: string
   patient_id: string
   doctor_id: string
-  service_id: string
+  plan_tratamiento_id?: string | null
   consultorio_id: string
   notes?: string
   is_first_visit?: boolean
@@ -18,27 +18,22 @@ export interface Appointment {
   // Relations (optional for joined queries)
   patient_nombre?: string
   doctor_nombre?: string
-  service_nombre?: string
-  service_duracion?: number
+  plan_nombre?: string
 }
 
 // Create a new appointment
 export async function createAppointment(appointment: Omit<Appointment, "id" | "created_at" | "updated_at">): Promise<Appointment> {
-  // Prepare the insert data - temporarily exclude is_first_visit until DB migration
-  const insertData: any = {
+  const insertData = {
       title: appointment.title,
       date: appointment.date,
       time: appointment.time,
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
-      service_id: appointment.service_id,
+      plan_tratamiento_id: appointment.plan_tratamiento_id || null,
       consultorio_id: appointment.consultorio_id,
-      notes: appointment.notes || null
+      notes: appointment.notes || null,
+      is_first_visit: appointment.is_first_visit || false
   }
-
-  // Only include is_first_visit if the column exists (after migration)
-  // TODO: Uncomment this line after running the migration in Supabase
-  // insertData.is_first_visit = appointment.is_first_visit || false
 
   const { data, error } = await supabase
     .from("appointments")
@@ -51,14 +46,7 @@ export async function createAppointment(appointment: Omit<Appointment, "id" | "c
     throw new Error(`Error creating appointment: ${error.message}`)
   }
   
-  // Temporary solution: store is_first_visit in localStorage until DB migration
-  if (typeof window !== 'undefined' && appointment.is_first_visit) {
-    const firstVisitData = JSON.parse(localStorage.getItem('appointment_first_visits') || '{}')
-    firstVisitData[data.id] = appointment.is_first_visit
-    localStorage.setItem('appointment_first_visits', JSON.stringify(firstVisitData))
-  }
-  
-  return data as Appointment
+  return data as unknown as Appointment
 }
 
 // Get all appointments 
@@ -69,7 +57,7 @@ export async function getAppointments(): Promise<Appointment[]> {
       *,
       patient:patient_id(nombre_completo),
       doctor:doctor_id(nombre_completo),
-      service:service_id(nombre_servicio, duracion)
+      plan:plan_tratamiento_id(fecha)
     `)
     .order("date", { ascending: true })
     .order("time", { ascending: true })
@@ -79,57 +67,38 @@ export async function getAppointments(): Promise<Appointment[]> {
     throw new Error(`Error fetching appointments: ${error.message}`)
   }
   
-  // Get temporary first visit data from localStorage
-  const firstVisitData = typeof window !== 'undefined' 
-    ? JSON.parse(localStorage.getItem('appointment_first_visits') || '{}') 
-    : {}
-  
   // Transform the data to match our Appointment interface
   return (data || []).map(item => ({
-    id: item.id,
-    title: item.title,
-    date: item.date,
-    time: item.time,
-    patient_id: item.patient_id,
-    doctor_id: item.doctor_id,
-    service_id: item.service_id,
-    consultorio_id: item.consultorio_id,
-    notes: item.notes,
-    // TODO: Uncomment this line after running the migration in Supabase
-    // is_first_visit: item.is_first_visit,
-    is_first_visit: firstVisitData[item.id] || false, // Read from localStorage until migration is run
-    created_at: item.created_at,
-    updated_at: item.updated_at,
-    patient_nombre: item.patient?.nombre_completo,
-    doctor_nombre: item.doctor?.nombre_completo,
-    service_nombre: item.service?.nombre_servicio,
-    service_duracion: item.service?.duracion
+    id: String(item.id || ''),
+    title: String(item.title || ''),
+    date: String(item.date || ''),
+    time: String(item.time || ''),
+    patient_id: String(item.patient_id || ''),
+    doctor_id: String(item.doctor_id || ''),
+    plan_tratamiento_id: item.plan_tratamiento_id ? String(item.plan_tratamiento_id) : null,
+    consultorio_id: String(item.consultorio_id || ''),
+    notes: String(item.notes || ''),
+    is_first_visit: Boolean(item.is_first_visit),
+    created_at: String(item.created_at || ''),
+    updated_at: String(item.updated_at || ''),
+    patient_nombre: String((item.patient as any)?.nombre_completo || ''),
+    doctor_nombre: String((item.doctor as any)?.nombre_completo || ''),
+    plan_nombre: (item.plan as any)?.fecha ? `Plan ${new Date((item.plan as any).fecha).toLocaleDateString()}` : undefined
   }))
 }
 
 // Update an appointment
 export async function updateAppointment(id: string, appointment: Partial<Appointment>): Promise<void> {
-  // Prepare the update data - temporarily exclude is_first_visit until DB migration
-  const updateData: any = {
+  const updateData = {
       title: appointment.title,
       date: appointment.date,
       time: appointment.time,
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
-      service_id: appointment.service_id,
+      plan_tratamiento_id: appointment.plan_tratamiento_id,
       consultorio_id: appointment.consultorio_id,
-      notes: appointment.notes
-  }
-
-  // Only include is_first_visit if the column exists (after migration)
-  // TODO: Uncomment this line after running the migration in Supabase
-  // updateData.is_first_visit = appointment.is_first_visit
-
-  // Temporary solution: store is_first_visit in localStorage until DB migration
-  if (typeof window !== 'undefined' && appointment.is_first_visit !== undefined) {
-    const firstVisitData = JSON.parse(localStorage.getItem('appointment_first_visits') || '{}')
-    firstVisitData[id] = appointment.is_first_visit
-    localStorage.setItem('appointment_first_visits', JSON.stringify(firstVisitData))
+      notes: appointment.notes,
+      is_first_visit: appointment.is_first_visit
   }
 
   const { error } = await supabase

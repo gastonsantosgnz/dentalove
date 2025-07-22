@@ -85,6 +85,7 @@ export function AddServiceDialog({
     descripcion: "",
     especialidad: "",
     tipo_paciente: "General",
+    consultorio_id: "",
   });
 
   // Efecto para cerrar el menú de tipo de paciente al hacer clic fuera
@@ -189,7 +190,10 @@ export function AddServiceDialog({
     // Esperar un momento antes de enviar para asegurar que el diálogo se cierre primero
     requestAnimationFrame(() => {
       if (onSubmit) {
-        onSubmit(formDataCopy);
+        onSubmit({
+          ...formDataCopy,
+          costo: Number(formDataCopy.costo) || 0
+        });
       }
       
       // Limpiar el formulario después de enviar
@@ -200,6 +204,7 @@ export function AddServiceDialog({
         descripcion: "",
         especialidad: "",
         tipo_paciente: "General",
+        consultorio_id: "",
       });
     });
   }, [formData, onSubmit, setOpen]);

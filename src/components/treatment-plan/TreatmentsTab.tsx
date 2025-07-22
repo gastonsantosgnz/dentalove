@@ -30,6 +30,10 @@ import {
   registrarPagoServicio,
   createServicioProgreso
 } from "@/lib/serviciosProgresoService";
+import { createIngresoDesdeServicio } from "@/lib/ingresosService";
+import { getDoctoresByConsultorio } from "@/lib/doctoresService";
+import { useConsultorio } from "@/contexts/ConsultorioContext";
+import { useToast } from "@/components/ui/use-toast";
 import { isGeneralAreaKey } from "./utils";
 import { GeneralTreatmentsTable } from "./GeneralTreatmentsTable";
 import { SpecificToothTreatmentsTable } from "./SpecificToothTreatmentsTable";
@@ -87,6 +91,9 @@ const formatDate = (dateString: string | undefined | null): string => {
 export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, planId, versionId }: TreatmentsTabProps) {
   const [loading, setLoading] = useState(false);
   const [serviciosProgreso, setServiciosProgreso] = useState<ServicioProgreso[]>([]);
+  const [doctores, setDoctores] = useState<any[]>([]);
+  const { consultorio } = useConsultorio();
+  const { toast } = useToast();
   
   // Estado para diálogos
   const [servicioActual, setServicioActual] = useState<{
@@ -100,6 +107,8 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
   const [fecha, setFecha] = useState<Date>(new Date());
   const [monto, setMonto] = useState<string>('');
   const [notas, setNotas] = useState<string>('');
+  const [doctorSeleccionado, setDoctorSeleccionado] = useState<string>('');
+  const [crearIngresoAutomatico, setCrearIngresoAutomatico] = useState<boolean>(true);
   const [openDialogType, setOpenDialogType] = useState<'completar' | 'cancelar' | 'pago' | null>(null);
   
   useEffect(() => {
@@ -110,6 +119,12 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
       try {
         const progreso = await getServiciosProgresoPlan(planId);
         setServiciosProgreso(progreso);
+        
+        // Cargar doctores del consultorio
+        if (consultorio?.id) {
+          const doctoresData = await getDoctoresByConsultorio(consultorio.id);
+          setDoctores(doctoresData);
+        }
       } catch (error) {
         console.error("Error al cargar el progreso de servicios:", error);
       } finally {
@@ -118,7 +133,7 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
     }
     
     cargarProgreso();
-  }, [planId]);
+  }, [planId, consultorio]);
   
   // Process treatments and group them
   const specificToothTreatments: Record<string, { teeth: string[]; color: string; servicio_id?: string | null }> = {};
@@ -210,6 +225,7 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
     
     try {
       setLoading(true);
+      let servicioProgresoId: string | null = null;
       
       // Buscar si ya existe un registro de progreso
       const existingProgreso = findServicioProgreso(
@@ -219,12 +235,13 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
       
       if (existingProgreso) {
         // Actualizar el registro existente
-        await marcarServicioCompletado(
+        const servicioActualizado = await marcarServicioCompletado(
           existingProgreso.id,
           fecha.toISOString(),
           parseFloat(monto) || servicioActual.costo,
           notas
         );
+        servicioProgresoId = servicioActualizado.id;
       } else {
         // Buscar el ID real del zona_tratamiento
         let tratamientoId: string | null = null;
@@ -245,7 +262,7 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
         }
         
         // Crear un nuevo registro con el ID del tratamiento correcto
-        await createServicioProgreso({
+        const nuevoServicio = await createServicioProgreso({
           paciente_id: pacienteId,
           plan_id: planId,
           version_id: versionId,
@@ -255,6 +272,38 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
           monto_pagado: parseFloat(monto) || servicioActual.costo,
           fecha_pago: fecha.toISOString(),
           notas
+        });
+        servicioProgresoId = nuevoServicio.id;
+      }
+      
+      // Crear ingreso automáticamente si está habilitado y hay doctor seleccionado
+      if (crearIngresoAutomatico && doctorSeleccionado && servicioProgresoId) {
+        try {
+          await createIngresoDesdeServicio(
+            servicioProgresoId,
+            parseFloat(monto) || servicioActual.costo,
+            doctorSeleccionado
+          );
+          
+          toast({
+            title: "Servicio completado e ingreso registrado",
+            description: `Se ha creado automáticamente un ingreso por $${(parseFloat(monto) || servicioActual.costo).toLocaleString()}`,
+            duration: 5000,
+          });
+        } catch (ingresoError) {
+          console.error("Error al crear ingreso automático:", ingresoError);
+          toast({
+            title: "Servicio completado",
+            description: "El servicio se completó correctamente, pero ocurrió un error al crear el ingreso automático.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      } else {
+        toast({
+          title: "Servicio completado",
+          description: `${servicioActual.nombreServicio} ha sido marcado como completado`,
+          duration: 3000,
         });
       }
       
@@ -268,6 +317,7 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
       setFecha(new Date());
       setMonto('');
       setNotas('');
+      setDoctorSeleccionado('');
     } catch (error) {
       console.error("Error al completar el servicio:", error);
     } finally {
@@ -509,6 +559,11 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
         setMonto={setMonto}
         notas={notas}
         setNotas={setNotas}
+        doctorSeleccionado={doctorSeleccionado}
+        setDoctorSeleccionado={setDoctorSeleccionado}
+        crearIngresoAutomatico={crearIngresoAutomatico}
+        setCrearIngresoAutomatico={setCrearIngresoAutomatico}
+        doctores={doctores}
         onConfirm={handleCompletarServicio}
         loading={loading}
       />

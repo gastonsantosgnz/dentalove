@@ -78,10 +78,18 @@ export default function TreatmentPlanDetailsPage() {
         
         // Load versions
         const planVersions = await getPlanVersiones(planId);
-        setVersions(planVersions);
+        const transformedVersions = planVersions.map((v: any) => ({
+          id: String(v.id || ''),
+          nombre: String(v.nombre || ''),
+          activa: Boolean(v.activa),
+          costo_total: Number(v.costo_total || 0),
+          plan_id: String(v.plan_id || ''),
+          created_at: String(v.created_at || '')
+        }));
+        setVersions(transformedVersions);
         
         // Set active version
-        const activeVer = planVersions.find((v: PlanVersion) => v.activa) || planVersions[0];
+        const activeVer = transformedVersions.find((v: PlanVersion) => v.activa) || transformedVersions[0];
         setActiveVersionState(activeVer);
         
         // Load patient data from Supabase
@@ -97,7 +105,7 @@ export default function TreatmentPlanDetailsPage() {
         // Load toothStatus for all versions
         const versionsData: Record<string, Record<string, ToothStatus[]>> = {};
         
-        for (const ver of planVersions) {
+        for (const ver of transformedVersions) {
           try {
             const { toothStatus: versionToothStatus } = await getPlanVersionDetail(ver.id);
             versionsData[ver.id] = versionToothStatus;
@@ -137,8 +145,18 @@ export default function TreatmentPlanDetailsPage() {
       // Get the version details
       const { version, toothStatus: versionToothStatus, toothComments: versionToothComments } = await getPlanVersionDetail(versionId);
       
+      // Transform version data
+      const transformedVersion = {
+        id: String((version as any)?.id || ''),
+        nombre: String((version as any)?.nombre || ''),
+        activa: Boolean((version as any)?.activa),
+        costo_total: Number((version as any)?.costo_total || 0),
+        plan_id: String((version as any)?.plan_id || ''),
+        created_at: String((version as any)?.created_at || '')
+      };
+      
       // Update the UI
-      setActiveVersionState(version);
+      setActiveVersionState(transformedVersion);
       setToothStatus(versionToothStatus);
       if (versionToothComments) {
         setToothComments(versionToothComments);
@@ -154,13 +172,13 @@ export default function TreatmentPlanDetailsPage() {
       if (plan) {
         setPlan({
           ...plan,
-          costo_total: version.costo_total
+          costo_total: transformedVersion.costo_total
         });
       }
       
       toast({
         title: "Versión activada",
-        description: `Se ha cambiado a la ${version.nombre}`
+        description: `Se ha cambiado a la ${transformedVersion.nombre}`
       });
     } catch (error) {
       console.error("Error changing version:", error);

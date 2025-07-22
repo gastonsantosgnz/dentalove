@@ -278,7 +278,7 @@ export async function getResumenProgresoPlan(planId: string): Promise<{
   const completados = servicios.filter(s => s.estado === 'completado').length;
   const pendientes = servicios.filter(s => s.estado === 'pendiente').length;
   const cancelados = servicios.filter(s => s.estado === 'cancelado').length;
-  const totalMontoPagado = servicios.reduce((sum, s) => sum + (parseFloat(s.monto_pagado) || 0), 0);
+  const totalMontoPagado = servicios.reduce((sum, s) => sum + (parseFloat(String(s.monto_pagado || 0)) || 0), 0);
   
   return {
     total,

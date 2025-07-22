@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { getPlanesTratamiento, getPatientTreatmentPlans, calculatePlanStatistics, getPlanDetail } from "@/lib/planesTratamientoService";
 import { getPacienteById } from "@/lib/pacientesService";
 import { useToast } from "@/components/ui/use-toast";
+import { formatDateLocal } from "@/lib/formatDate";
 
 interface PatientPlansListProps {
   patientId?: string;
@@ -33,12 +34,7 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
 
   // Formatear fecha como "14 de mayo de 2025"
   const formatFecha = (fecha: string): string => {
-    const date = new Date(fecha);
-    return date.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    return formatDateLocal(fecha, "dd 'de' MMMM 'de' yyyy");
   };
 
   // Cargar planes cuando se monta el componente o cambia el patientId
@@ -47,9 +43,20 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
       setIsLoading(true);
       try {
         // Obtener los planes básicos desde Supabase (todos o filtrados por paciente)
-        const rawPlans = patientId 
-          ? await getPatientTreatmentPlans(patientId)
-          : await getPlanesTratamiento();
+        let rawPlans;
+        if (patientId) {
+          rawPlans = await getPatientTreatmentPlans(patientId);
+        } else {
+          // Para "Todos los planes", solo cargar los de los últimos 3 días
+          rawPlans = await getPlanesTratamiento();
+          const threeDaysAgo = new Date();
+          threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+          
+          rawPlans = rawPlans.filter(plan => {
+            const planDate = new Date(String(plan.fecha || ''));
+            return planDate >= threeDaysAgo;
+          });
+        }
         
         // Crear un array para almacenar los planes con estadísticas
         const plansWithStats: TreatmentPlanSummary[] = [];
@@ -58,7 +65,7 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
         for (const plan of rawPlans) {
           try {
             // Cargar detalles del plan (incluyendo tooth status)
-            const planDetails = await getPlanDetail(plan.id);
+            const planDetails = await getPlanDetail(String(plan.id || ''));
             
             // Obtener información del paciente
             let nombrePaciente = "Paciente";
@@ -68,12 +75,12 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
             } else {
               // Si no, lo buscamos por ID
               try {
-                const paciente = await getPacienteById(plan.paciente_id);
+                const paciente = await getPacienteById(String(plan.paciente_id || ''));
                 if (paciente) {
                   nombrePaciente = paciente.nombre_completo;
                 }
               } catch (error) {
-                console.error(`Error obteniendo información del paciente ${plan.paciente_id}:`, error);
+                console.error(`Error obteniendo información del paciente ${String(plan.paciente_id || '')}:`, error);
               }
             }
             
@@ -82,17 +89,17 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
             
             // Añadir el plan con estadísticas al array
             plansWithStats.push({
-              id: plan.id,
-              nombre: plan.nombre || `Plan ${new Date(plan.fecha).toLocaleDateString()}`,
-              fecha: plan.fecha,
-              costo_total: plan.costo_total,
+              id: String(plan.id || ''),
+              nombre: `Plan ${new Date(String(plan.fecha || '')).toLocaleDateString()}`,
+              fecha: String(plan.fecha || ''),
+              costo_total: Number(plan.costo_total || 0),
               totalTreatments: stats.totalTreatments,
               totalTeeth: stats.totalTeeth,
-              paciente_id: plan.paciente_id,
+              paciente_id: String(plan.paciente_id || ''),
               paciente_nombre: nombrePaciente
             });
           } catch (error) {
-            console.error(`Error cargando detalles del plan ${plan.id}:`, error);
+            console.error(`Error cargando detalles del plan ${String(plan.id || '')}:`, error);
           }
         }
         
@@ -124,7 +131,7 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
       transition={{ duration: 0.3 }}
     >
       <h2 className="text-xl font-semibold mb-4">
-        {patientId ? `Planes de ${patientName}` : "Todos los planes dentales"}
+        {patientId ? `Planes de ${patientName}` : "Planes dentales recientes (últimos 3 días)"}
       </h2>
 
       {isLoading ? (
@@ -208,7 +215,7 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
             <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
               {patientId 
                 ? "Este paciente aún no tiene planes de tratamiento dental registrados. Puedes crear uno nuevo para comenzar."
-                : "No hay planes de tratamiento dental registrados. Selecciona un paciente para crear un nuevo plan."}
+                : "No hay planes de tratamiento dental de los últimos 3 días. Selecciona un paciente para crear un nuevo plan o revisa planes más antiguos."}
             </p>
             {patientId && (
               <Button 

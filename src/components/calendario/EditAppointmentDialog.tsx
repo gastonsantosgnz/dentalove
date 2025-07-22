@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { Trash2 } from "lucide-react"
+import { getPatientTreatmentPlans } from "@/lib/planes/planesTratamientoService"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -47,7 +48,7 @@ interface Appointment {
   time: string
   patient_id: string
   doctor_id: string
-  service_id: string
+  plan_tratamiento_id?: string | null
   consultorio_id: string
   notes?: string
   is_first_visit?: boolean
@@ -61,7 +62,6 @@ interface EditAppointmentDialogProps {
   onDelete: (id: string) => Promise<void>
   patients: Array<{ id: string, nombre_completo: string }>
   doctors: Array<{ id: string, nombre_completo: string }>
-  services: Array<{ id: string, nombre_servicio: string, duracion: number }>
 }
 
 export function EditAppointmentDialog({
@@ -71,8 +71,7 @@ export function EditAppointmentDialog({
   onUpdate,
   onDelete,
   patients,
-  doctors,
-  services
+  doctors
 }: EditAppointmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -80,25 +79,70 @@ export function EditAppointmentDialog({
   const [time, setTime] = useState("09:00")
   const [patientId, setPatientId] = useState("")
   const [doctorId, setDoctorId] = useState("")
-  const [serviceId, setServiceId] = useState("")
+  const [planTratamientoId, setPlanTratamientoId] = useState("")
   const [notes, setNotes] = useState("")
   const [isFirstVisit, setIsFirstVisit] = useState(false)
+  const [patientPlans, setPatientPlans] = useState<Array<{ id: string, nombre: string, fecha: string }>>([])
+  const [loadingPlans, setLoadingPlans] = useState(false)
+
+  // Load patient treatment plans when a patient is selected
+  const loadPatientPlans = async (selectedPatientId: string) => {
+    if (!selectedPatientId) {
+      setPatientPlans([])
+      setPlanTratamientoId("")
+      return
+    }
+
+    setLoadingPlans(true)
+    try {
+      const plans = await getPatientTreatmentPlans(selectedPatientId)
+      const formattedPlans = plans.map(plan => ({
+        id: String(plan.id || ''),
+        nombre: `Plan ${new Date(String(plan.fecha || '')).toLocaleDateString()}`,
+        fecha: String(plan.fecha || '')
+      }))
+      
+      setPatientPlans(formattedPlans)
+    } catch (error) {
+      console.error("Error loading patient plans:", error)
+      setPatientPlans([])
+    } finally {
+      setLoadingPlans(false)
+    }
+  }
+
+  // Effect to load plans when patient changes
+  useEffect(() => {
+    if (patientId && open) {
+      loadPatientPlans(patientId)
+    } else {
+      setPatientPlans([])
+      setPlanTratamientoId("")
+    }
+  }, [patientId, open])
+
+  // Effect to manage first visit logic based on plans
+  useEffect(() => {
+    if (patientPlans.length > 0 && isFirstVisit) {
+      setIsFirstVisit(false)
+    }
+  }, [patientPlans.length, isFirstVisit])
 
   // Cargar los datos de la cita cuando se abre el modal
   useEffect(() => {
-    if (appointment && open && patients.length > 0 && doctors.length > 0 && services.length > 0) {
+    if (appointment && open && patients.length > 0 && doctors.length > 0) {
       // Use setTimeout to ensure the Select components are ready
       setTimeout(() => {
         setSelectedDate(parseISO(appointment.date))
         setTime(appointment.time)
         setPatientId(appointment.patient_id)
         setDoctorId(appointment.doctor_id)
-        setServiceId(appointment.service_id)
+        setPlanTratamientoId(appointment.plan_tratamiento_id || "")
         setNotes(appointment.notes || "")
         setIsFirstVisit(appointment.is_first_visit || false)
       }, 100)
     }
-  }, [appointment, open, patients, doctors, services])
+  }, [appointment, open, patients, doctors])
 
   // Resetear el formulario cuando se cierra el modal
   useEffect(() => {
@@ -107,16 +151,22 @@ export function EditAppointmentDialog({
       setTime("09:00")
       setPatientId("")
       setDoctorId("")
-      setServiceId("")
+      setPlanTratamientoId("")
       setNotes("")
       setIsFirstVisit(false)
+      setPatientPlans([])
     }
   }, [open])
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!appointment || !selectedDate || !time || !patientId || !doctorId || !serviceId) {
+    if (!appointment || !selectedDate || !time || !patientId || !doctorId) {
+      return
+    }
+    
+    // Si no es primera visita, debe tener un plan de tratamiento seleccionado
+    if (!isFirstVisit && !planTratamientoId) {
       return
     }
     
@@ -128,7 +178,7 @@ export function EditAppointmentDialog({
         time,
         patient_id: patientId,
         doctor_id: doctorId,
-        service_id: serviceId,
+        plan_tratamiento_id: isFirstVisit ? null : planTratamientoId,
         notes,
         is_first_visit: isFirstVisit
       }
@@ -231,14 +281,51 @@ export function EditAppointmentDialog({
                 id="edit-first-visit"
                 checked={isFirstVisit}
                 onCheckedChange={(checked) => setIsFirstVisit(checked === true)}
+                disabled={patientPlans.length > 0}
               />
               <Label
                 htmlFor="edit-first-visit"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className={cn(
+                  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                  patientPlans.length > 0 && "text-muted-foreground"
+                )}
               >
                 Es la primera visita del paciente
+                {patientPlans.length > 0 && (
+                  <span className="text-xs text-muted-foreground ml-2">
+                    (El paciente ya tiene {patientPlans.length} plan{patientPlans.length > 1 ? 'es' : ''} de tratamiento)
+                  </span>
+                )}
               </Label>
             </div>
+
+            {/* Treatment Plan selection - only show if not first visit */}
+            {!isFirstVisit && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-plan">Plan de Tratamiento *</Label>
+                {loadingPlans ? (
+                  <div className="h-10 bg-slate-200 rounded-md animate-pulse"></div>
+                ) : (
+                  <Select key={`plan-${planTratamientoId}`} value={planTratamientoId} onValueChange={setPlanTratamientoId} required={!isFirstVisit}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un plan de tratamiento" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="z-[9999]" side="bottom" sideOffset={5}>
+                      {patientPlans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {patientPlans.length === 0 && !loadingPlans && (
+                  <p className="text-xs text-muted-foreground">
+                    Este paciente no tiene planes de tratamiento. Marca como primera visita para continuar.
+                  </p>
+                )}
+              </div>
+            )}
             
             {/* Doctor selection */}
             <div className="grid gap-2">
@@ -251,23 +338,6 @@ export function EditAppointmentDialog({
                   {doctors.map((doctor) => (
                     <SelectItem key={doctor.id} value={doctor.id}>
                       {doctor.nombre_completo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Service selection */}
-            <div className="grid gap-2">
-              <Label htmlFor="edit-service">Servicio *</Label>
-              <Select key={`service-${serviceId}`} value={serviceId} onValueChange={setServiceId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un servicio" />
-                </SelectTrigger>
-                <SelectContent position="popper" className="z-[9999]" side="bottom" sideOffset={5}>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.nombre_servicio} ({service.duracion} min)
                     </SelectItem>
                   ))}
                 </SelectContent>

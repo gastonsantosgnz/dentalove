@@ -291,28 +291,28 @@ export function MiembrosConsultorio() {
             
             // Si no se pudo obtener el nombre, usar un identificador genérico
             if (nombre === 'Usuario sin nombre') {
-              nombre = `Miembro #${item.usuario_id.substring(0, 8)}`;
+              nombre = `Miembro #${String(item.usuario_id || '').substring(0, 8)}`;
             }
               
             miembrosData.push({
-              id: item.id,
-              usuario_id: item.usuario_id,
+              id: String(item.id || ''),
+              usuario_id: String(item.usuario_id || ''),
               email,
               nombre: nombre || email,
-              rol: item.rol,
-              activo: item.activo
+              rol: String(item.rol || ''),
+              activo: Boolean(item.activo)
             });
           } catch (err) {
             console.warn(`Error al procesar miembro ${item.usuario_id}:`, err);
             
             // Añadir el miembro de todas formas con datos genéricos
             miembrosData.push({
-              id: item.id,
-              usuario_id: item.usuario_id,
-              email: item.usuario_id === user.id ? user.email || 'Sin email' : 'Sin email',
-              nombre: `Miembro #${item.usuario_id.substring(0, 8)}`,
-              rol: item.rol,
-              activo: item.activo
+              id: String(item.id || ''),
+              usuario_id: String(item.usuario_id || ''),
+              email: String(item.usuario_id || '') === (user?.id || '') ? user?.email || 'Sin email' : 'Sin email',
+              nombre: `Miembro #${String(item.usuario_id || '').substring(0, 8)}`,
+              rol: String(item.rol || ''),
+              activo: Boolean(item.activo)
             });
           }
         }

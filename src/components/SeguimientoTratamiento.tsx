@@ -322,8 +322,16 @@ export default function SeguimientoTratamiento({ pacienteId }: SeguimientoTratam
   
   // Formatear fecha
   const formatFecha = (fechaString: string | undefined) => {
-    if (!fechaString) return 'No definida';
-    return formatDateShort(fechaString);
+    if (!fechaString || fechaString === null || fechaString === undefined || fechaString === 'null' || fechaString === 'undefined') {
+      return 'No definida';
+    }
+    
+    try {
+      return formatDateShort(fechaString);
+    } catch (error) {
+      console.error('Error formateando fecha:', fechaString, error);
+      return 'Fecha inválida';
+    }
   };
   
   // Calcular progreso como porcentaje

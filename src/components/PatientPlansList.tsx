@@ -34,7 +34,17 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
 
   // Formatear fecha como "14 de mayo de 2025"
   const formatFecha = (fecha: string): string => {
-    return formatDateLocal(fecha, "dd 'de' MMMM 'de' yyyy");
+    // Validación robusta para evitar errores
+    if (!fecha || fecha === null || fecha === undefined || fecha === 'null' || fecha === 'undefined') {
+      return 'Fecha no disponible';
+    }
+    
+    try {
+      return formatDateLocal(fecha, "dd 'de' MMMM 'de' yyyy");
+    } catch (error) {
+      console.error('Error formateando fecha:', fecha, error);
+      return 'Fecha inválida';
+    }
   };
 
   // Cargar planes cuando se monta el componente o cambia el patientId
@@ -173,7 +183,7 @@ export default function PatientPlansList({ patientId, patientName = "Paciente" }
                   </CardTitle>
                   <CardDescription className="flex items-center mt-1">
                     <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                    {formatFecha(plan.fecha)}
+                    {plan?.fecha ? formatFecha(plan.fecha) : 'Fecha no disponible'}
                   </CardDescription>
                 </div>
                 <Button 

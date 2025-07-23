@@ -6,13 +6,20 @@ import {
   IconDental,
   IconCalendar,
   IconCurrencyDollar,
+  IconReceipt,
 } from "@tabler/icons-react";
 
-export const navlinks = [
+// Grupo 1: Inicio y Gestión de Pacientes
+export const patientManagementLinks = [
   {
     href: "/dashboard",
     label: "Inicio",
     icon: IconBolt,
+  },
+  {
+    href: "/calendario",
+    label: "Calendario",
+    icon: IconCalendar,
   },
   {
     href: "/pacientes",
@@ -20,28 +27,35 @@ export const navlinks = [
     icon: IconUsers,
   },
   {
-    href: "/servicios",
-    label: "Servicios",
-    icon: IconBriefcase2,
-  },
-  {
     href: "/planes",
     label: "Planes",
     icon: IconArticle,
   },
+];
+
+// Grupo 2: Gestión Administrativa
+export const administrativeLinks = [
   {
     href: "/ingresos",
     label: "Ingresos",
     icon: IconCurrencyDollar,
   },
   {
+    href: "/gastos",
+    label: "Gastos",
+    icon: IconReceipt,
+  },
+  {
+    href: "/servicios",
+    label: "Servicios",
+    icon: IconBriefcase2,
+  },
+  {
     href: "/doctores",
     label: "Doctores",
     icon: IconDental,
   },
-  {
-    href: "/calendario",
-    label: "Calendario",
-    icon: IconCalendar,
-  },
 ];
+
+// Exportar todos los links (para compatibilidad)
+export const navlinks = [...patientManagementLinks, ...administrativeLinks];

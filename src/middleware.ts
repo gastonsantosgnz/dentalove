@@ -48,31 +48,45 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/dashboard') || 
       request.nextUrl.pathname.startsWith('/mi-cuenta')
     )) {
-      console.log('[Middleware] Redirecting unauthenticated user to login');
+      console.log(`[Middleware] Redirecting unauthenticated user from ${request.nextUrl.pathname} to /login`);
       
-      // Establecer una cookie para evitar redirecciones en la página de login
-      const redirectResponse = NextResponse.redirect(new URL('/login', request.url));
-      redirectResponse.cookies.set('redirect_count', String(redirectCount + 1), { 
+      // Incrementar contador de redirecciones
+      const newRedirectCount = redirectCount + 1;
+      const loginUrl = new URL('/login', request.url);
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      redirectResponse.cookies.set('redirect_count', newRedirectCount.toString(), { 
         path: '/',
-        maxAge: 60 // 1 minuto
+        maxAge: 60 // Expira en 1 minuto
       });
-      
       return redirectResponse;
-    } 
-    
-    // Si pasa toda la verificación, continuamos normalmente
+    }
+
+    // Limpiar contador de redirecciones en caso de éxito
+    if (redirectCount > 0) {
+      response.cookies.set('redirect_count', '0', { 
+        path: '/',
+        maxAge: 0 
+      });
+    }
+
     return response;
   } catch (error) {
-    console.error('[Middleware] Error:', error);
-    return NextResponse.next();
+    console.error('[Middleware] Error in middleware:', error);
+    
+    // Redirigir a login en caso de error
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 }
 
 export const config = {
   matcher: [
-    '/dashboard/:path*', 
-    '/mi-cuenta/:path*',
-    '/login',
-    '/auth/callback'
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}; 
+} 

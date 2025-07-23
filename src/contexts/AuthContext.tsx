@@ -241,9 +241,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHasRedirected(false);
     
     try {
-      window.location.href = '/login';
+      router.push('/login');
     } catch (e) {
       console.error('Redirect error after signout:', e);
+      // Fallback solo si router.push falla
+      window.location.href = '/login';
     }
   };
 

@@ -18,19 +18,23 @@ export default function LoginForm() {
   const [showVerification, setShowVerification] = useState(false);
   const [otp, setOtp] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   
   const { signInWithOtp, verifyOtp, user } = useAuth();
   const router = useRouter();
 
   // Función para manejar redirección al dashboard
   const redirectToDashboard = () => {
+    if (isRedirecting) return;
+    
     console.log('[LoginForm] Forcing redirect to dashboard...');
-    window.location.href = '/dashboard';
+    setIsRedirecting(true);
+    router.push('/dashboard');
   };
 
   // Redirect if user is already authenticated
   useEffect(() => {
-    if (user && typeof window !== 'undefined') {
+    if (user && typeof window !== 'undefined' && !isRedirecting) {
       const currentPath = window.location.pathname;
       console.log('[LoginForm] Current path:', currentPath, 'User:', user.email);
       
@@ -42,7 +46,7 @@ export default function LoginForm() {
         console.log('[LoginForm] User authenticated but not on login page, skipping redirect');
       }
     }
-  }, [user]);
+  }, [user, isRedirecting]);
 
   // Request OTP code
   const handleRequestCode = async (e: React.FormEvent) => {
@@ -109,7 +113,7 @@ export default function LoginForm() {
       
       setTimeout(() => {
         const currentPath = document.location.pathname;
-        if (currentPath === '/login') {
+        if (currentPath === '/login' && !isRedirecting) {
           console.log('[LoginForm] Backup redirect kicking in after 2 seconds');
           redirectToDashboard();
         }

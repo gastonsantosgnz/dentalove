@@ -25,15 +25,22 @@ export default function LoginForm() {
   // Función para manejar redirección al dashboard
   const redirectToDashboard = () => {
     console.log('[LoginForm] Forcing redirect to dashboard...');
-    document.cookie = "skip_auth=true; path=/; max-age=60";
     window.location.href = '/dashboard';
   };
 
   // Redirect if user is already authenticated
   useEffect(() => {
-    if (user) {
-      console.log('[LoginForm] User already authenticated:', user.email);
-      redirectToDashboard();
+    if (user && typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      console.log('[LoginForm] Current path:', currentPath, 'User:', user.email);
+      
+      // Solo redirigir si estamos en la página de login
+      if (currentPath === '/login') {
+        console.log('[LoginForm] User already authenticated, redirecting from login page:', user.email);
+        redirectToDashboard();
+      } else {
+        console.log('[LoginForm] User authenticated but not on login page, skipping redirect');
+      }
     }
   }, [user]);
 
@@ -48,13 +55,33 @@ export default function LoginForm() {
       console.log('[LoginForm] Requesting OTP for:', email);
       const { error } = await signInWithOtp(email);
       
-      if (error) throw error;
+      if (error) {
+        console.error('[LoginForm] OTP request error:', error);
+        throw error;
+      }
       
+      console.log('[LoginForm] OTP request successful, showing verification form');
       setMessage('Se ha enviado un código de acceso a tu correo electrónico.');
       setShowVerification(true);
     } catch (err: any) {
       console.error('[LoginForm] Error requesting OTP:', err);
-      setError(err.message || 'Error al enviar el código de acceso');
+      
+      // Proporcionar mensajes de error más específicos
+      let errorMessage = 'Error al enviar el código de acceso';
+      
+      if (err.message) {
+        if (err.message.includes('rate limit')) {
+          errorMessage = 'Has enviado demasiadas solicitudes. Espera unos minutos antes de intentar de nuevo.';
+        } else if (err.message.includes('invalid email')) {
+          errorMessage = 'El formato del correo electrónico no es válido.';
+        } else if (err.message.includes('email not confirmed')) {
+          errorMessage = 'Este correo electrónico no ha sido confirmado.';
+        } else {
+          errorMessage = `Error: ${err.message}`;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -81,7 +108,8 @@ export default function LoginForm() {
       setMessage('Autenticación exitosa. Redirigiendo...');
       
       setTimeout(() => {
-        if (document.location.pathname !== '/dashboard') {
+        const currentPath = document.location.pathname;
+        if (currentPath === '/login') {
           console.log('[LoginForm] Backup redirect kicking in after 2 seconds');
           redirectToDashboard();
         }

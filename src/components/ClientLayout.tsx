@@ -3,7 +3,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/contexts/AuthContext";
+
 import { usePathname } from "next/navigation";
 import { twMerge } from "tailwind-merge";
 import { useEffect } from "react";
@@ -46,23 +46,21 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, [pathname]);
   
   return (
-    <AuthProvider>
-      <ServiciosProvider>
-        {showSidebar && <Sidebar />}
+    <ServiciosProvider>
+      {showSidebar && <Sidebar />}
+      <div className={twMerge(
+        "lg:pt-2 bg-gray-100 flex-1 overflow-y-auto",
+        showSidebar ? "lg:pl-2" : "")}>
         <div className={twMerge(
-          "lg:pt-2 bg-gray-100 flex-1 overflow-y-auto",
-          showSidebar ? "lg:pl-2" : "")}>
-          <div className={twMerge(
-            "flex-1 bg-white rounded-tl-2xl min-h-full overflow-hidden flex flex-col",
-            showSidebar ? "lg:rounded-tl-2xl" : "")}>
-            <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-              {children}
-            </main>
-            <Footer />
-          </div>
+          "flex-1 bg-white rounded-tl-2xl min-h-full overflow-hidden flex flex-col",
+          showSidebar ? "lg:rounded-tl-2xl" : "")}>
+          <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+            {children}
+          </main>
+          <Footer />
         </div>
-        <Toaster />
-      </ServiciosProvider>
-    </AuthProvider>
+      </div>
+      <Toaster />
+    </ServiciosProvider>
   );
 } 

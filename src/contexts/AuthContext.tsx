@@ -45,9 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const redirectToDashboard = useCallback(() => {
     if (unmountedRef.current) return;
     
-    // Establecer cookie para evitar problemas con el middleware
-    document.cookie = "skip_auth=true; path=/; max-age=60";
-    
     try {
       // Usar router.push para navegación SPA cuando sea posible
       router.push('/dashboard');
@@ -172,14 +169,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Función para iniciar sesión con OTP (código por email)
   const signInWithOtp = async (email: string) => {
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      console.log('[AuthContext] Attempting to send OTP to:', email);
+      console.log('[AuthContext] Email redirect URL:', `${window.location.origin}/auth/callback`);
+      
+      const { error, data } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+      
+      console.log('[AuthContext] OTP request response:', { error, data });
+      
+      if (error) {
+        console.error('[AuthContext] OTP request failed:', error);
+      } else {
+        console.log('[AuthContext] OTP request successful');
+      }
+      
       return { error };
     } catch (error) {
+      console.error('[AuthContext] Exception during OTP request:', error);
       return { error: error as Error };
     }
   };
@@ -207,11 +217,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Actualizar email en el perfil si es necesario
         await updateUserEmailIfNeeded(data.session.user);
         
-        // Establecer una cookie para evitar problemas con el middleware
-        document.cookie = "skip_auth=true; path=/; max-age=60";
-        
-        // Redirigir inmediatamente
-        redirectToDashboard();
+        // Solo redirigir si estamos en la página de login
+        const currentPath = window.location.pathname;
+        if (currentPath === '/login') {
+          redirectToDashboard();
+        }
       }
       
       return { error };

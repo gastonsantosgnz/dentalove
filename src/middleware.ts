@@ -5,76 +5,31 @@ export async function middleware(request: NextRequest) {
   // Permitir siempre acceso a estas rutas sin verificar autenticación
   if (request.nextUrl.pathname === '/login' || 
       request.nextUrl.pathname === '/auth/callback' || 
-      request.nextUrl.pathname === '/') {
+      request.nextUrl.pathname === '/' ||
+      request.nextUrl.pathname.startsWith('/_next') ||
+      request.nextUrl.pathname.includes('.')) {
     return NextResponse.next();
   }
 
-  // Para evitar ciclos infinitos, verificamos si hay un contador de redirecciones
-  const redirectCount = Number(request.cookies.get('redirect_count')?.value || '0');
-  if (redirectCount > 2) {
-    console.log('[Middleware] Detected redirect loop! Stopping middleware.');
-    // Limpiar la cookie de contador y continuar
-    const response = NextResponse.next();
-    response.cookies.set('redirect_count', '0', { 
-      path: '/',
-      maxAge: 0 
-    });
-    return response;
-  }
-
-  // Verificar si tenemos una cookie para omitir la verificación
-  const skipAuth = request.cookies.get('skip_auth')?.value === 'true';
-  if (skipAuth) {
-    console.log('[Middleware] Skipping auth check due to cookie');
-    // Limpiar la cookie después de usarla
-    const response = NextResponse.next();
-    response.cookies.set('skip_auth', '', { maxAge: 0, path: '/' });
-    return response;
-  }
-
   try {
-    // Actualizamos la sesión usando el nuevo helper
+    // Actualizamos la sesión usando el helper de Supabase
     const response = await updateSession(request);
-
-    // Verificamos si el usuario está autenticado después de actualizar la sesión
-    // Obtenemos la cookie de sesión que se acaba de refrescar
-    const sessionCookie = request.cookies.get(`sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('.')[0]}-auth-token`)?.value;
-    const isAuthenticated = !!sessionCookie;
     
-    console.log(`[Middleware] Path: ${request.nextUrl.pathname}, Auth status: ${isAuthenticated ? 'authenticated' : 'unauthenticated'}`);
-
-    // Sólo proteger rutas específicas según el matcher
-    if (!isAuthenticated && (
-      request.nextUrl.pathname.startsWith('/dashboard') || 
-      request.nextUrl.pathname.startsWith('/mi-cuenta')
-    )) {
-      console.log(`[Middleware] Redirecting unauthenticated user from ${request.nextUrl.pathname} to /login`);
-      
-      // Incrementar contador de redirecciones
-      const newRedirectCount = redirectCount + 1;
-      const loginUrl = new URL('/login', request.url);
-      const redirectResponse = NextResponse.redirect(loginUrl);
-      redirectResponse.cookies.set('redirect_count', newRedirectCount.toString(), { 
-        path: '/',
-        maxAge: 60 // Expira en 1 minuto
-      });
-      return redirectResponse;
-    }
-
-    // Limpiar contador de redirecciones en caso de éxito
-    if (redirectCount > 0) {
-      response.cookies.set('redirect_count', '0', { 
-        path: '/',
-        maxAge: 0 
-      });
-    }
-
+    // Si llegamos aquí, la sesión es válida
+    console.log(`[Middleware] Path: ${request.nextUrl.pathname}, Auth status: authenticated`);
+    
     return response;
   } catch (error) {
-    console.error('[Middleware] Error in middleware:', error);
+    // Si hay error en la sesión, redirigir a login solo para rutas protegidas
+    if (request.nextUrl.pathname.startsWith('/dashboard') || 
+        request.nextUrl.pathname.startsWith('/mi-cuenta')) {
+      
+      console.log(`[Middleware] Path: ${request.nextUrl.pathname}, Auth status: unauthenticated - redirecting to login`);
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
     
-    // Redirigir a login en caso de error
-    return NextResponse.redirect(new URL('/login', request.url));
+    // Para otras rutas, permitir acceso
+    return NextResponse.next();
   }
 }
 

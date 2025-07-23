@@ -73,6 +73,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@types/js-cookie": "^3.0.6"
+    "@types/js-cookie": "^3.0.6",
+    "supabase-cli": "^0.0.21"
   }
 }

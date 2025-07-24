@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -24,13 +24,13 @@ export default function LoginForm() {
   const router = useRouter();
 
   // Función para manejar redirección al dashboard
-  const redirectToDashboard = () => {
+  const redirectToDashboard = useCallback(() => {
     if (isRedirecting) return;
     
     console.log('[LoginForm] Forcing redirect to dashboard...');
     setIsRedirecting(true);
     router.push('/dashboard');
-  };
+  }, [isRedirecting, router]);
 
   // Redirect if user is already authenticated
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function LoginForm() {
         console.log('[LoginForm] User authenticated but not on login page, skipping redirect');
       }
     }
-  }, [user, isRedirecting]);
+  }, [user, isRedirecting, redirectToDashboard]);
 
   // Request OTP code
   const handleRequestCode = async (e: React.FormEvent) => {

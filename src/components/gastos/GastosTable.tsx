@@ -29,7 +29,15 @@ import {
   Trash2, 
   FileText,
   Eye,
-  Download
+  Download,
+  Receipt,
+  User,
+  CheckCircle,
+  XCircle,
+  UserCheck,
+  Users,
+  Building,
+  Factory
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -94,15 +102,107 @@ export default function GastosTable({ gastos, isLoading, onRefresh, onEdit }: Ga
 
   const getMetodoPagoBadge = (metodo: string) => {
     const metodosDisplay: Record<string, string> = {
-      efectivo: 'Efectivo',
-      transferencia: 'Transferencia',
-      tarjeta_debito: 'T. Débito',
-      tarjeta_credito: 'T. Crédito',
+      efectivo: 'Efect',
+      transferencia: 'Trans',
+      tarjeta_debito: 'TDD',
+      tarjeta_credito: 'TDC',
       cheque: 'Cheque',
       otro: 'Otro'
     };
     
     return <Badge variant="outline">{metodosDisplay[metodo] || metodo}</Badge>;
+  };
+
+  // NUEVAS FUNCIONES PARA LOS BADGES
+  const getFacturaBadge = (generaFactura?: boolean) => {
+    if (generaFactura) {
+      return (
+        <Badge variant="default" className="bg-blue-500 text-white">
+          <Receipt className="h-3 w-3 mr-1" />
+          Con Factura
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-gray-500">
+        Sin Factura
+      </Badge>
+    );
+  };
+
+  const getDeducibleBadge = (esDeducible?: boolean) => {
+    if (esDeducible) {
+      return (
+        <Badge variant="default" className="bg-green-600 text-white">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Deducible
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary" className="text-orange-600">
+        <XCircle className="h-3 w-3 mr-1" />
+        No Deducible
+      </Badge>
+    );
+  };
+
+  // NUEVA FUNCIÓN PARA IDENTIFICAR SUELDOS DE EMPLEADOS
+  const getSueldoBadge = (subcategoriaNombre: string) => {
+    const esSueldo = subcategoriaNombre?.toLowerCase().includes('sueldo') || 
+                    subcategoriaNombre?.toLowerCase().includes('salario');
+    
+    if (esSueldo) {
+      return (
+        <Badge variant="default" className="bg-indigo-500 text-white">
+          <Users className="h-3 w-3 mr-1" />
+          Sueldo Empleado
+        </Badge>
+      );
+    }
+    return null;
+  };
+
+  // NUEVA FUNCIÓN PARA IDENTIFICAR COMISIONES DE DOCTORES
+  const getComisionBadge = (subcategoriaNombre: string) => {
+    const esComision = subcategoriaNombre?.toLowerCase().includes('comision') && 
+                     subcategoriaNombre?.toLowerCase().includes('doctor');
+    
+    if (esComision) {
+      return (
+        <Badge variant="default" className="bg-purple-500 text-white">
+          <UserCheck className="h-3 w-3 mr-1" />
+          Comisión Doctor
+        </Badge>
+      );
+    }
+    return null;
+  };
+
+  // NUEVO: Badge para gastos con proveedor específico
+  const getProveedorBadge = (gasto: any) => {
+    if (gasto.proveedor_relacion_id || gasto.proveedor_id) {
+      return (
+        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+          <Building className="h-3 w-3 mr-1" />
+          Proveedor Registrado
+        </Badge>
+      );
+    }
+    return null;
+  };
+
+  // NUEVO: Badge para gastos con laboratorio específico
+  const getLaboratorioBadge = (gasto: any) => {
+    if (gasto.laboratorio_relacion_id || gasto.laboratorio_id) {
+      return (
+        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+          <Factory className="h-3 w-3 mr-1" />
+          Laboratorio Registrado
+        </Badge>
+      );
+    }
+    return null;
   };
 
   if (isLoading) {
@@ -112,7 +212,7 @@ export default function GastosTable({ gastos, isLoading, onRefresh, onEdit }: Ga
           <TableHeader>
             <TableRow>
               <TableHead>Fecha</TableHead>
-              <TableHead>Descripción</TableHead>
+              <TableHead>Pagado a</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Subcategoría</TableHead>
               <TableHead>Monto</TableHead>
@@ -125,11 +225,11 @@ export default function GastosTable({ gastos, isLoading, onRefresh, onEdit }: Ga
             {[...Array(5)].map((_, i) => (
               <TableRow key={i}>
                 <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                 <TableCell><Skeleton className="h-8 w-8" /></TableCell>
               </TableRow>
@@ -157,7 +257,7 @@ export default function GastosTable({ gastos, isLoading, onRefresh, onEdit }: Ga
           <TableHeader>
             <TableRow>
               <TableHead>Fecha</TableHead>
-              <TableHead>Descripción</TableHead>
+              <TableHead>Pagado a</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Subcategoría</TableHead>
               <TableHead className="text-right">Monto</TableHead>
@@ -173,11 +273,16 @@ export default function GastosTable({ gastos, isLoading, onRefresh, onEdit }: Ga
                   {format(new Date(gasto.fecha), 'dd MMM yyyy', { locale: es })}
                 </TableCell>
                 <TableCell>
-                  <div>
-                    <p className="font-medium">{gasto.descripcion}</p>
-                    {gasto.notas && (
-                      <p className="text-sm text-muted-foreground">{gasto.notas}</p>
-                    )}
+                  {gasto.proveedor_beneficiario ? (
+                    <div className="text-sm">
+                      <span>{gasto.proveedor_beneficiario}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">-</span>
+                  )}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {getProveedorBadge(gasto)}
+                    {getLaboratorioBadge(gasto)}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -190,7 +295,7 @@ export default function GastosTable({ gastos, isLoading, onRefresh, onEdit }: Ga
                   </div>
                 </TableCell>
                 <TableCell className="text-sm">
-                  {gasto.subcategoria_nombre}
+                  <span>{gasto.subcategoria_nombre}</span>
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   ${gasto.monto.toLocaleString('es-MX')}

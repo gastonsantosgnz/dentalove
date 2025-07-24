@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,11 @@ import {
   CategoriaGasto,
   SubcategoriaGasto 
 } from "@/lib/gastosService";
-import { Loader2, Upload, X } from "lucide-react";
+import { getDoctoresByConsultorio, Doctor } from "@/lib/doctoresService";
+import { getEmpleadosByConsultorio, Empleado } from "@/lib/empleadosService";
+import { getProveedoresByConsultorio, Proveedor } from "@/lib/proveedoresService";
+import { getLaboratoriosByConsultorio, Laboratorio } from "@/lib/laboratoriosService";
+import { Loader2, Upload, X, Receipt, User, FileCheck, Users, Building, Factory } from "lucide-react";
 
 interface AddGastoDialogProps {
   open: boolean;
@@ -34,6 +38,10 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
   const [isLoading, setIsLoading] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaGasto[]>([]);
   const [subcategorias, setSubcategorias] = useState<SubcategoriaGasto[]>([]);
+  const [doctores, setDoctores] = useState<Doctor[]>([]);
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
   const [file, setFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
@@ -44,9 +52,112 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
     descripcion: "",
     metodo_pago: "efectivo" as const,
     estado: "pagado" as const,
-    notas: ""
+    notas: "",
+    // NUEVOS CAMPOS
+    genera_factura: false,
+    numero_factura: "",
+    proveedor_beneficiario: "",
+    es_deducible: true,
+    // CAMPOS DE RELACIÓN
+    doctor_id: "",
+    empleado_id: "",
+    proveedor_id: "",
+    laboratorio_id: ""
   });
 
+  // Función para cargar doctores del consultorio
+  const loadDoctores = useCallback(async () => {
+    if (!consultorio) {
+      console.log("[AddGastoDialog] No hay consultorio disponible para cargar doctores");
+      return;
+    }
+    
+    console.log("[AddGastoDialog] Cargando doctores para consultorio:", consultorio.id);
+    
+    try {
+      const data = await getDoctoresByConsultorio(consultorio.id);
+      console.log("[AddGastoDialog] Doctores cargados:", data);
+      setDoctores(data);
+    } catch (error) {
+      console.error("[AddGastoDialog] Error loading doctores:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los doctores",
+        variant: "destructive"
+      });
+    }
+  }, [consultorio, toast]);
+
+  // Función para cargar empleados del consultorio
+  const loadEmpleados = useCallback(async () => {
+    if (!consultorio) {
+      console.log("[AddGastoDialog] No hay consultorio disponible para cargar empleados");
+      return;
+    }
+    
+    console.log("[AddGastoDialog] Cargando empleados para consultorio:", consultorio.id);
+    
+    try {
+      const data = await getEmpleadosByConsultorio(consultorio.id);
+      console.log("[AddGastoDialog] Empleados cargados:", data);
+      setEmpleados(data);
+    } catch (error) {
+      console.error("[AddGastoDialog] Error loading empleados:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los empleados",
+        variant: "destructive"
+      });
+    }
+  }, [consultorio, toast]);
+
+  // Función para cargar proveedores del consultorio
+  const loadProveedores = useCallback(async () => {
+    if (!consultorio) {
+      console.log("[AddGastoDialog] No hay consultorio disponible para cargar proveedores");
+      return;
+    }
+    
+    console.log("[AddGastoDialog] Cargando proveedores para consultorio:", consultorio.id);
+    
+    try {
+      const data = await getProveedoresByConsultorio(consultorio.id);
+      console.log("[AddGastoDialog] Proveedores cargados:", data);
+      setProveedores(data);
+    } catch (error) {
+      console.error("[AddGastoDialog] Error loading proveedores:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los proveedores",
+        variant: "destructive"
+      });
+    }
+  }, [consultorio, toast]);
+
+  // Función para cargar laboratorios del consultorio
+  const loadLaboratorios = useCallback(async () => {
+    if (!consultorio) {
+      console.log("[AddGastoDialog] No hay consultorio disponible para cargar laboratorios");
+      return;
+    }
+    
+    console.log("[AddGastoDialog] Cargando laboratorios para consultorio:", consultorio.id);
+    
+    try {
+      const data = await getLaboratoriosByConsultorio(consultorio.id);
+      console.log("[AddGastoDialog] Laboratorios cargados:", data);
+      setLaboratorios(data);
+    } catch (error) {
+      console.error("[AddGastoDialog] Error loading laboratorios:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los laboratorios",
+        variant: "destructive"
+      });
+    }
+  }, [consultorio, toast]);
+
+  // Cargar categorías
   const loadCategorias = useCallback(async () => {
     if (!consultorio) {
       console.log("[AddGastoDialog] No hay consultorio disponible");
@@ -85,14 +196,6 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
     }
   }, [consultorio, toast]);
 
-  // Cargar categorías
-  useEffect(() => {
-    console.log("[AddGastoDialog] useEffect - open:", open, "consultorio:", consultorio);
-    if (open && consultorio) {
-      loadCategorias();
-    }
-  }, [open, consultorio, loadCategorias]);
-
   // Cargar subcategorías cuando cambia la categoría
   useEffect(() => {
     if (formData.categoria_id) {
@@ -102,6 +205,56 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
       setFormData(prev => ({ ...prev, subcategoria_id: "" }));
     }
   }, [formData.categoria_id, loadSubcategorias]);
+
+  // Cargar categorías, doctores, empleados, proveedores y laboratorios cuando se abre el diálogo
+  useEffect(() => {
+    console.log("[AddGastoDialog] useEffect - open:", open, "consultorio:", consultorio);
+    if (open && consultorio) {
+      loadCategorias();
+      loadDoctores();
+      loadEmpleados();
+      loadProveedores();
+      loadLaboratorios();
+    }
+  }, [open, consultorio, loadCategorias, loadDoctores, loadEmpleados, loadProveedores, loadLaboratorios]);
+
+  // Verificar si la subcategoría seleccionada es "Comisiones Doctores"
+  const esComisionDoctores = useMemo(() => {
+    const subcategoriaSeleccionada = subcategorias.find(s => s.id === formData.subcategoria_id);
+    return subcategoriaSeleccionada?.nombre?.toLowerCase().includes('comision') && 
+           subcategoriaSeleccionada?.nombre?.toLowerCase().includes('doctor');
+  }, [formData.subcategoria_id, subcategorias]);
+
+  // Verificar si la subcategoría seleccionada es "Sueldos"
+  const esSueldoEmpleado = useMemo(() => {
+    const subcategoriaSeleccionada = subcategorias.find(s => s.id === formData.subcategoria_id);
+    return subcategoriaSeleccionada?.nombre?.toLowerCase().includes('sueldo') || 
+           subcategoriaSeleccionada?.nombre?.toLowerCase().includes('salario');
+  }, [formData.subcategoria_id, subcategorias]);
+
+  // Verificar si la categoría seleccionada es "Materiales" (para laboratorios)
+  const esMaterialesCategoria = useMemo(() => {
+    const categoriaSeleccionada = categorias.find(c => c.id === formData.categoria_id);
+    return categoriaSeleccionada?.nombre?.toLowerCase().includes('materiales');
+  }, [formData.categoria_id, categorias]);
+
+  // Verificar si la categoría seleccionada es "Equipamiento" (para proveedores)
+  const esEquipamientoCategoria = useMemo(() => {
+    const categoriaSeleccionada = categorias.find(c => c.id === formData.categoria_id);
+    return categoriaSeleccionada?.nombre?.toLowerCase().includes('equipamiento');
+  }, [formData.categoria_id, categorias]);
+
+  // Limpiar proveedor, doctor, empleado, proveedor y laboratorio cuando cambia la subcategoría  
+  useEffect(() => {
+    setFormData(prev => ({ 
+      ...prev, 
+      proveedor_beneficiario: "",
+      doctor_id: "",
+      empleado_id: "",
+      proveedor_id: "",
+      laboratorio_id: ""
+    }));
+  }, [formData.subcategoria_id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -133,6 +286,26 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
       return;
     }
 
+    // Validación específica para comisiones de doctores
+    if (esComisionDoctores && !formData.doctor_id) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar un doctor para registrar la comisión",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validación específica para sueldos de empleados
+    if (esSueldoEmpleado && !formData.empleado_id) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar un empleado para registrar el sueldo",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -145,7 +318,17 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
         descripcion: formData.descripcion,
         metodo_pago: formData.metodo_pago,
         estado: formData.estado,
-        notas: formData.notas || undefined
+        notas: formData.notas || undefined,
+        // NUEVOS CAMPOS
+        genera_factura: formData.genera_factura,
+        numero_factura: formData.numero_factura,
+        proveedor_beneficiario: formData.proveedor_beneficiario,
+        es_deducible: formData.es_deducible,
+        // CAMPOS DE RELACIÓN
+        doctor_id: formData.doctor_id,
+        empleado_id: formData.empleado_id,
+        proveedor_id: formData.proveedor_id,
+        laboratorio_id: formData.laboratorio_id
       });
 
       // Subir comprobante si existe
@@ -189,7 +372,17 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
       descripcion: "",
       metodo_pago: "efectivo",
       estado: "pagado",
-      notas: ""
+      notas: "",
+      // NUEVOS CAMPOS
+      genera_factura: false,
+      numero_factura: "",
+      proveedor_beneficiario: "",
+      es_deducible: true,
+      // CAMPOS DE RELACIÓN
+      doctor_id: "",
+      empleado_id: "",
+      proveedor_id: "",
+      laboratorio_id: ""
     });
     setFile(null);
   };
@@ -341,12 +534,321 @@ export default function AddGastoDialog({ open, onOpenChange, onSuccess }: AddGas
             />
           </div>
 
+          {/* NUEVOS CAMPOS DE INFORMACIÓN FISCAL */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Proveedor/Beneficiario - Condicional */}
+            <div className="space-y-2">
+              <Label htmlFor="proveedor_beneficiario">
+                {esComisionDoctores ? (
+                  <>
+                    <User className="h-4 w-4 inline mr-1" />
+                    Doctor *
+                  </>
+                ) : esSueldoEmpleado ? (
+                  <>
+                    <Users className="h-4 w-4 inline mr-1" />
+                    Empleado *
+                  </>
+                ) : esEquipamientoCategoria ? (
+                  <>
+                    <Building className="h-4 w-4 inline mr-1" />
+                    Proveedor (Opcional)
+                  </>
+                ) : esMaterialesCategoria ? (
+                  <>
+                    <Factory className="h-4 w-4 inline mr-1" />
+                    Laboratorio (Opcional)
+                  </>
+                ) : (
+                  <>
+                    <User className="h-4 w-4 inline mr-1" />
+                    Proveedor/Beneficiario
+                  </>
+                )}
+              </Label>
+              
+              {esComisionDoctores ? (
+                // Dropdown de doctores
+                <Select
+                  value={formData.doctor_id}
+                  onValueChange={(doctorId) => {
+                    const doctorSeleccionado = doctores.find(d => d.id === doctorId);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      doctor_id: doctorId,
+                      proveedor_beneficiario: doctorSeleccionado?.nombre_completo || ""
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona el doctor" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {doctores.length === 0 ? (
+                      <SelectItem value="no-doctores" disabled>
+                        No hay doctores disponibles
+                      </SelectItem>
+                    ) : (
+                      doctores.map((doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{doctor.nombre_completo}</span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {doctor.especialidad}
+                            </span>
+                            {doctor.porcentaje_comision && doctor.porcentaje_comision > 0 && (
+                              <span className="text-xs bg-green-100 text-green-600 px-1 rounded ml-2">
+                                {doctor.porcentaje_comision}%
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : esSueldoEmpleado ? (
+                // Dropdown de empleados
+                <Select
+                  value={formData.empleado_id}
+                  onValueChange={(empleadoId) => {
+                    const empleadoSeleccionado = empleados.find(e => e.id === empleadoId);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      empleado_id: empleadoId,
+                      proveedor_beneficiario: empleadoSeleccionado?.nombre_completo || ""
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona el empleado" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    {empleados.length === 0 ? (
+                      <SelectItem value="no-empleados" disabled>
+                        No hay empleados disponibles
+                      </SelectItem>
+                    ) : (
+                      empleados.map((empleado) => (
+                        <SelectItem key={empleado.id} value={empleado.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{empleado.nombre_completo}</span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {empleado.puesto}
+                            </span>
+                            {empleado.departamento && (
+                              <span className="text-xs bg-blue-100 text-blue-600 px-1 rounded ml-2">
+                                {empleado.departamento}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : esEquipamientoCategoria ? (
+                // Sección flexible para Equipamiento - Dropdown de proveedores O texto libre
+                <div className="space-y-2">
+                  <Select
+                    value={formData.proveedor_id}
+                    onValueChange={(proveedorId) => {
+                      if (proveedorId === 'manual') {
+                        // Cambiar a modo manual
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          proveedor_id: '',
+                          proveedor_beneficiario: ''
+                        }));
+                      } else {
+                        const proveedorSeleccionado = proveedores.find(p => p.id === proveedorId);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          proveedor_id: proveedorId,
+                          proveedor_beneficiario: proveedorSeleccionado?.nombre_comercial || ""
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un proveedor registrado" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999]">
+                      <SelectItem value="manual">
+                        <span className="text-blue-600">✏️ Introducir manualmente</span>
+                      </SelectItem>
+                      {proveedores.length === 0 ? (
+                        <SelectItem value="no-proveedores" disabled>
+                          No hay proveedores disponibles
+                        </SelectItem>
+                      ) : (
+                        proveedores.map((proveedor) => (
+                          <SelectItem key={proveedor.id} value={proveedor.id}>
+                            <div className="flex items-center justify-between w-full">
+                              <span>{proveedor.nombre_comercial}</span>
+                              {proveedor.categoria_proveedor && (
+                                <span className="text-xs bg-orange-100 text-orange-600 px-1 rounded ml-2">
+                                  {proveedor.categoria_proveedor}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!formData.proveedor_id && (
+                    <Input
+                      placeholder="O introduce el nombre del proveedor manualmente"
+                      value={formData.proveedor_beneficiario}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        proveedor_beneficiario: e.target.value,
+                        proveedor_id: ''
+                      }))}
+                    />
+                  )}
+                </div>
+              ) : esMaterialesCategoria ? (
+                // Sección flexible para Materiales - Dropdown de laboratorios O texto libre
+                <div className="space-y-2">
+                  <Select
+                    value={formData.laboratorio_id}
+                    onValueChange={(laboratorioId) => {
+                      if (laboratorioId === 'manual') {
+                        // Cambiar a modo manual
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          laboratorio_id: '',
+                          proveedor_beneficiario: ''
+                        }));
+                      } else {
+                        const laboratorioSeleccionado = laboratorios.find(l => l.id === laboratorioId);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          laboratorio_id: laboratorioId,
+                          proveedor_beneficiario: laboratorioSeleccionado?.nombre_laboratorio || ""
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un laboratorio registrado" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999]">
+                      <SelectItem value="manual">
+                        <span className="text-blue-600">✏️ Introducir manualmente</span>
+                      </SelectItem>
+                      {laboratorios.length === 0 ? (
+                        <SelectItem value="no-laboratorios" disabled>
+                          No hay laboratorios disponibles
+                        </SelectItem>
+                      ) : (
+                        laboratorios.map((laboratorio) => (
+                          <SelectItem key={laboratorio.id} value={laboratorio.id}>
+                            <div className="flex items-center justify-between w-full">
+                              <span>{laboratorio.nombre_laboratorio}</span>
+                              {laboratorio.especialidades && laboratorio.especialidades.length > 0 && (
+                                <span className="text-xs bg-purple-100 text-purple-600 px-1 rounded ml-2">
+                                  {laboratorio.especialidades[0]}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!formData.laboratorio_id && (
+                    <Input
+                      placeholder="O introduce el nombre del proveedor/laboratorio manualmente"
+                      value={formData.proveedor_beneficiario}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        proveedor_beneficiario: e.target.value,
+                        laboratorio_id: ''
+                      }))}
+                    />
+                  )}
+                </div>
+              ) : (
+                // Input normal para otros casos
+                <Input
+                  id="proveedor_beneficiario"
+                  placeholder="Nombre del proveedor o a quién se le pagó"
+                  value={formData.proveedor_beneficiario}
+                  onChange={(e) => setFormData(prev => ({ ...prev, proveedor_beneficiario: e.target.value }))}
+                />
+              )}
+            </div>
+
+            {/* Genera Factura */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Receipt className="h-4 w-4" />
+                Genera Factura Fiscal
+              </Label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="genera_factura"
+                  checked={formData.genera_factura}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    genera_factura: e.target.checked,
+                    numero_factura: e.target.checked ? prev.numero_factura : ""
+                  }))}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="genera_factura" className="text-sm">
+                  Este gasto genera factura fiscal
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Número de Factura (solo si genera factura) */}
+          {formData.genera_factura && (
+            <div className="space-y-2">
+              <Label htmlFor="numero_factura">
+                <FileCheck className="h-4 w-4 inline mr-1" />
+                Número de Factura
+              </Label>
+              <Input
+                id="numero_factura"
+                placeholder="Número de factura o folio fiscal"
+                value={formData.numero_factura}
+                onChange={(e) => setFormData(prev => ({ ...prev, numero_factura: e.target.value }))}
+              />
+            </div>
+          )}
+
+          {/* Es Deducible */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <FileCheck className="h-4 w-4" />
+              Deducibilidad Fiscal
+            </Label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="es_deducible"
+                checked={formData.es_deducible}
+                onChange={(e) => setFormData(prev => ({ ...prev, es_deducible: e.target.checked }))}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="es_deducible" className="text-sm">
+                Este gasto es deducible fiscalmente
+              </Label>
+            </div>
+          </div>
+
           {/* Notas */}
           <div className="space-y-2">
             <Label htmlFor="notas">Notas adicionales</Label>
             <Textarea
               id="notas"
-              placeholder="Información adicional, proveedor, etc."
+              placeholder="Información adicional, observaciones, etc."
               value={formData.notas}
               onChange={(e) => setFormData(prev => ({ ...prev, notas: e.target.value }))}
               rows={3}

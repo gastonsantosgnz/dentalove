@@ -36,10 +36,12 @@ import {
   getGastos, 
   getEstadisticasGastos,
   getCategorias,
+  getSubcategorias,
   getGastosPorCategoria,
   crearCategoriasPredefinidas,
   GastoDetalle,
-  CategoriaGasto
+  CategoriaGasto,
+  SubcategoriaGasto
 } from "@/lib/gastosService";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -63,11 +65,13 @@ export default function GastosPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [gastos, setGastos] = useState<GastoDetalle[]>([]);
   const [categorias, setCategorias] = useState<CategoriaGasto[]>([]);
+  const [subcategorias, setSubcategorias] = useState<SubcategoriaGasto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategoria, setFilterCategoria] = useState<string>("todas");
   const [filterEstado, setFilterEstado] = useState<string>("todos");
   const [filterPeriodo, setFilterPeriodo] = useState<string>("mes");
+  const [selectedCategoriaResumen, setSelectedCategoriaResumen] = useState<string>("todas");
   const [estadisticas, setEstadisticas] = useState({
     totalGastos: 0,
     totalFijos: 0,
@@ -95,6 +99,10 @@ export default function GastosPage() {
       } else {
         setCategorias(categoriasData);
       }
+      
+      // Cargar subcategorías
+      const subcategoriasData = await getSubcategorias(consultorio.id);
+      setSubcategorias(subcategoriasData);
       
       // Cargar gastos
       const gastosData = await getGastos(consultorio.id);
@@ -130,6 +138,36 @@ export default function GastosPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Función para obtener gastos por subcategoría de una categoría específica
+  const getGastosPorSubcategoria = (categoriaId: string) => {
+    if (categoriaId === "todas") {
+      return [];
+    }
+    
+    const gastosCategoria = gastos.filter(g => g.categoria_id === categoriaId);
+    const subcategoriasCategoria = subcategorias.filter(s => s.categoria_id === categoriaId);
+    
+    const gastosPorSub = subcategoriasCategoria.map(sub => {
+      const gastosSubcategoria = gastosCategoria.filter(g => g.subcategoria_id === sub.id);
+      const total = gastosSubcategoria.reduce((sum, g) => sum + g.monto, 0);
+      
+      return {
+        subcategoria_id: sub.id,
+        subcategoria_nombre: sub.nombre,
+        total,
+        cantidad: gastosSubcategoria.length,
+        porcentaje: 0 // Se calculará después
+      };
+    });
+    
+    const totalCategoria = gastosPorSub.reduce((sum, sub) => sum + sub.total, 0);
+    
+    return gastosPorSub.map(sub => ({
+      ...sub,
+      porcentaje: totalCategoria > 0 ? (sub.total / totalCategoria) * 100 : 0
+    })).filter(sub => sub.total > 0).sort((a, b) => b.total - a.total);
+  };
 
   // Filtrar gastos
   const filteredGastos = gastos.filter(gasto => {
@@ -341,7 +379,15 @@ export default function GastosPage() {
                 <div className="space-y-4">
                   {gastosPorCategoria.length > 0 ? (
                     gastosPorCategoria.map((cat) => (
-                      <div key={cat.categoria_id} className="space-y-2">
+                      <div 
+                        key={cat.categoria_id} 
+                        className={`space-y-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                          selectedCategoriaResumen === cat.categoria_id 
+                            ? 'bg-blue-50 border border-blue-200' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                        onClick={() => setSelectedCategoriaResumen(cat.categoria_id)}
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div 
@@ -379,16 +425,66 @@ export default function GastosPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Gastos Recurrentes</CardTitle>
+                <CardTitle>Distribución por Subcategoría</CardTitle>
                 <CardDescription>
-                  Gastos fijos más comunes
+                  {selectedCategoriaResumen === "todas" 
+                    ? "Selecciona una categoría para ver sus subcategorías"
+                    : `Subcategorías de ${categorias.find(c => c.id === selectedCategoriaResumen)?.nombre || ''}`
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Análisis de gastos recurrentes próximamente
-                  </p>
+                  {selectedCategoriaResumen === "todas" ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Selecciona una categoría de la izquierda para ver su distribución por subcategorías
+                    </p>
+                  ) : (
+                    (() => {
+                      const gastosPorSub = getGastosPorSubcategoria(selectedCategoriaResumen);
+                      const categoriaSeleccionada = categorias.find(c => c.id === selectedCategoriaResumen);
+                      
+                      return gastosPorSub.length > 0 ? (
+                        gastosPorSub.map((sub) => (
+                          <div key={sub.subcategoria_id} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-2 h-2 rounded-full" 
+                                  style={{ backgroundColor: categoriaSeleccionada?.color || '#6B7280' }}
+                                />
+                                <span className="text-sm font-medium">{sub.subcategoria_nombre}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold">
+                                  ${sub.total.toLocaleString('es-MX')}
+                                </span>
+                                <p className="text-xs text-muted-foreground">
+                                  {sub.cantidad} gasto{sub.cantidad !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full transition-all duration-500"
+                                style={{ 
+                                  width: `${sub.porcentaje}%`,
+                                  backgroundColor: categoriaSeleccionada?.color || '#6B7280'
+                                }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {sub.porcentaje.toFixed(1)}% de la categoría
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          No hay gastos en subcategorías de esta categoría
+                        </p>
+                      );
+                    })()
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -171,7 +171,7 @@ export function CompletarServicioDialog({
                             <div className="flex items-center gap-2">
                               <UserIcon className="h-4 w-4" />
                               <span>{doctor.nombre_completo}</span>
-                              {doctor.porcentaje_comision > 0 && (
+                              {doctor.porcentaje_comision && doctor.porcentaje_comision > 0 && (
                                 <span className="text-sm text-muted-foreground">
                                   ({doctor.porcentaje_comision}% comisión)
                                 </span>

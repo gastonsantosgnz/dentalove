@@ -126,11 +126,14 @@ export default function DashboardPage() {
           .select('costo_total')
           .gte('fecha', firstDayOfMonth)
           .lte('fecha', lastDayOfMonth);
-          
+
         if (plansError) throw plansError;
-        
-        // Sum up all treatment plan costs
-        const totalIncome = treatmentPlans.reduce((sum: number, plan: PlanTratamiento) => sum + parseFloat(String(plan.costo_total || '0')), 0);
+
+        // Cast treatmentPlans to the expected type
+        const totalIncome = ((treatmentPlans ?? []) as { costo_total: string | number | null }[]).reduce(
+          (sum, plan) => sum + parseFloat(String(plan.costo_total ?? '0')),
+          0
+        );
         
         // Get recent patients (reduced to 3)
         const { data: patients, error: patientsError } = await supabase
@@ -153,9 +156,17 @@ export default function DashboardPage() {
             doctor_id,
             service_id,
             notes,
-            pacientes!inner(nombre_completo),
-            doctores!inner(nombre_completo),
-            servicios!inner(nombre_servicio)
+            planes_tratamiento (
+              paciente:pacientes (
+                nombre_completo
+              )
+            ),
+            doctores (
+              nombre_completo
+            ),
+            servicios (
+              nombre_servicio
+            )
           `)
           .eq('date', todayStr)
           .order('time', { ascending: true });
@@ -171,9 +182,9 @@ export default function DashboardPage() {
           doctor_id: apt.doctor_id,
           service_id: apt.service_id,
           notes: apt.notes,
-          patient_nombre: apt.pacientes?.nombre_completo,
-          doctor_nombre: apt.doctores?.nombre_completo,
-          service_nombre: apt.servicios?.nombre_servicio
+          patient_nombre: apt.planes_tratamiento?.paciente?.nombre_completo || 'Desconocido',
+          doctor_nombre: apt.doctores?.nombre_completo || 'Desconocido',
+          service_nombre: apt.servicios?.nombre_servicio || 'Desconocido'
         })) || [];
         
         // Update state
@@ -357,4 +368,4 @@ export default function DashboardPage() {
       </div>
     </ProtectedRoute>
   );
-} 
+}

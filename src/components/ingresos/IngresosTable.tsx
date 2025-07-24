@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { formatDateLocal } from "@/lib/formatDate";
+import { formatDate } from "../../../lib/formatDate";
+
 import { 
   MoreHorizontal, 
   Eye, 
@@ -168,7 +169,7 @@ export default function IngresosTable({ ingresos, isLoading, onRefresh }: Ingres
             {ingresos.map((ingreso) => (
               <TableRow key={ingreso.id}>
                 <TableCell className="font-medium">
-                  {formatDateLocal(ingreso.fecha_servicio, "dd MMM")}
+                  {formatDate(ingreso.fecha_servicio, "dd MMM")}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

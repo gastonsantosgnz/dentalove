@@ -80,4 +80,19 @@ export const deleteDoctor = async (id: string): Promise<void> => {
     console.error('Error deleting doctor:', error);
     throw error;
   }
-}; 
+};
+
+export const getDoctoresByConsultorio = async (consultorioId: string): Promise<Doctor[]> => {
+  const { data, error } = await supabase
+    .from('doctores')
+    .select('*')
+    .eq('consultorio_id', consultorioId)
+    .order('nombre_completo');
+  
+  if (error) {
+    console.error('Error fetching doctors by consultorio:', error);
+    throw error;
+  }
+  
+  return data || [];
+};

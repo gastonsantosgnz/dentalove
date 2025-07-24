@@ -6,8 +6,10 @@ import { Clock, Check, XCircle, CheckCircle2, DollarSign } from "lucide-react";
 import { ServicioProgreso } from "@/lib/serviciosProgresoService";
 import { Servicio } from "@/components/ToothStatus";
 import { ToothStatus } from "@/components/DentalChart";
-import { formatDate, getServiceCost } from "./utils";
-import { formatDateLocal } from "@/lib/formatDate";
+import { getServiceCost } from "./utils";
+// Update the import path to the correct location and filename
+import { formatDate } from "../../../lib/formatDate";
+
 
 interface SpecificToothTreatmentsTableProps {
   specificToothTreatments: Record<string, { teeth: string[]; color: string; servicio_id?: string | null }>;
@@ -124,7 +126,7 @@ export function SpecificToothTreatmentsTable({
                         )}
                       </td>
                       <td className="py-3 px-3 text-center text-xs text-slate-600">
-                        {planFecha ? formatDateLocal(planFecha, "dd MMM yyyy") : '-'}
+                        {planFecha ? formatDate(planFecha, "dd MMM yyyy") : '-'}
                       </td>
                       <td className="py-3 px-3">
                         <div className="flex justify-end gap-1">

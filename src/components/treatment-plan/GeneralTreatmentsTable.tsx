@@ -6,8 +6,8 @@ import { Clock, Check, XCircle, CheckCircle2, DollarSign } from "lucide-react";
 import { ServicioProgreso } from "@/lib/serviciosProgresoService";
 import { Servicio } from "@/components/ToothStatus";
 import { ToothStatus } from "@/components/DentalChart";
-import { formatDate, getAreaName, getServiceCost } from "./utils";
-import { formatDateLocal } from "@/lib/formatDate";
+import { getAreaName, getServiceCost } from "./utils";
+import { formatDate } from "../../../lib/formatDate";
 
 interface GeneralTreatmentsTableProps {
   generalAreaTreatments: Record<string, { areas: string[]; color: string; servicio_id?: string | null }>;
@@ -125,7 +125,7 @@ export function GeneralTreatmentsTable({
                       )}
                     </td>
                     <td className="py-3 px-3 text-center text-xs text-slate-600">
-                      {planFecha ? formatDateLocal(planFecha, "dd MMM yyyy") : '-'}
+                      {planFecha ? formatDate(planFecha, "dd MMM yyyy") : '-'}
                     </td>
                     <td className="py-3 px-3">
                       <div className="flex justify-end gap-1">

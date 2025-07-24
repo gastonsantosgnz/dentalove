@@ -216,7 +216,7 @@ export default function PacientesTable() {
   useEffect(() => {
     loadPacientes();
     loadAppointmentData();
-  }, []);
+  }, [loadAppointmentData]);
 
   // Handle opening appointment dialog for a specific patient
   const handleAgendarCita = (paciente: Paciente) => {
@@ -899,4 +899,4 @@ export default function PacientesTable() {
       )}
     </motion.div>
   );
-} 
+}

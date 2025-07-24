@@ -245,7 +245,15 @@ export function AddDoctorDialog({
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
             <Button 
               type="submit" 
               disabled={isLoading || !consultorioId}

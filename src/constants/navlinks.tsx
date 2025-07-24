@@ -51,9 +51,14 @@ export const administrativeLinks = [
     icon: IconBriefcase2,
   },
   {
-    href: "/doctores",
-    label: "Doctores",
+    href: "/equipo",
+    label: "Equipo",
     icon: IconDental,
+  },
+  {
+    href: "/proveedores",
+    label: "Proveedores",
+    icon: IconUsers,
   },
 ];
 

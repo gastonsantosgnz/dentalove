@@ -7,6 +7,7 @@ import { ServicioProgreso } from "@/lib/serviciosProgresoService";
 import { Servicio } from "@/components/ToothStatus";
 import { ToothStatus } from "@/components/DentalChart";
 import { formatDate, getServiceCost } from "./utils";
+import { formatDateLocal } from "@/lib/formatDate";
 
 interface SpecificToothTreatmentsTableProps {
   specificToothTreatments: Record<string, { teeth: string[]; color: string; servicio_id?: string | null }>;
@@ -37,6 +38,7 @@ interface SpecificToothTreatmentsTableProps {
     esGeneral: boolean;
     costo: number;
   }) => void;
+  planFecha: string;
 }
 
 export function SpecificToothTreatmentsTable({
@@ -46,7 +48,8 @@ export function SpecificToothTreatmentsTable({
   findServicioProgreso,
   onCompletarClick,
   onCancelarClick,
-  onPagoClick
+  onPagoClick,
+  planFecha
 }: SpecificToothTreatmentsTableProps) {
   return (
     <Card>
@@ -121,7 +124,7 @@ export function SpecificToothTreatmentsTable({
                         )}
                       </td>
                       <td className="py-3 px-3 text-center text-xs text-slate-600">
-                        {progreso?.fecha_realizacion ? formatDate(progreso.fecha_realizacion) : '-'}
+                        {planFecha ? formatDateLocal(planFecha, "dd MMM yyyy") : '-'}
                       </td>
                       <td className="py-3 px-3">
                         <div className="flex justify-end gap-1">

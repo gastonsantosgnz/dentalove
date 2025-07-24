@@ -130,6 +130,59 @@ export function CompletarServicioDialog({
                   rows={3}
                 />
               </div>
+
+              {/* Configuración de Ingreso Automático */}
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Crear ingreso automáticamente</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Al completar el servicio, se registrará automáticamente como ingreso
+                    </p>
+                  </div>
+                  <Switch
+                    checked={crearIngresoAutomatico}
+                    onCheckedChange={setCrearIngresoAutomatico}
+                  />
+                </div>
+
+                {crearIngresoAutomatico && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="doctor" className="flex items-center gap-1">
+                      Doctor responsable
+                      <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={doctorSeleccionado} onValueChange={setDoctorSeleccionado}>
+                      <SelectTrigger className={cn(
+                        "w-full",
+                        crearIngresoAutomatico && !doctorSeleccionado && "border-red-500"
+                      )}>
+                        <SelectValue placeholder="Seleccionar doctor *" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="z-[9999]">
+                        {doctores.map((doctor) => (
+                          <SelectItem key={doctor.id} value={doctor.id}>
+                            <div className="flex items-center gap-2">
+                              <UserIcon className="h-4 w-4" />
+                              <span>{doctor.nombre_completo}</span>
+                              {doctor.porcentaje_comision && doctor.porcentaje_comision > 0 && (
+                                <span className="text-sm text-muted-foreground">
+                                  ({doctor.porcentaje_comision}% comisión)
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {crearIngresoAutomatico && !doctorSeleccionado && (
+                      <p className="text-sm text-red-500">
+                        Debe seleccionar un doctor para crear el ingreso automáticamente
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
@@ -139,7 +192,7 @@ export function CompletarServicioDialog({
             </Button>
             <Button 
               onClick={onConfirm}
-              disabled={loading}
+              disabled={loading || (crearIngresoAutomatico && !doctorSeleccionado)}
               className="bg-green-600 hover:bg-green-700"
             >
               {loading ? 'Guardando...' : 'Confirmar'}

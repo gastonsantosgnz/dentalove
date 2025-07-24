@@ -30,6 +30,11 @@ import {
   registrarPagoServicio,
   createServicioProgreso
 } from "@/lib/serviciosProgresoService";
+import { createIngresoDesdeServicio } from "@/lib/ingresosService";
+import { getDoctoresByConsultorio } from "@/lib/doctoresService";
+import { getPlanTratamientoById } from "@/lib/planes/planesTratamientoService";
+import { useConsultorio } from "@/contexts/ConsultorioContext";
+import { useToast } from "@/components/ui/use-toast";
 import { isGeneralAreaKey } from "./utils";
 import { GeneralTreatmentsTable } from "./GeneralTreatmentsTable";
 import { SpecificToothTreatmentsTable } from "./SpecificToothTreatmentsTable";
@@ -87,6 +92,13 @@ const formatDate = (dateString: string | undefined | null): string => {
 export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, planId, versionId }: TreatmentsTabProps) {
   const [loading, setLoading] = useState(false);
   const [serviciosProgreso, setServiciosProgreso] = useState<ServicioProgreso[]>([]);
+<<<<<<< Updated upstream
+=======
+  const [doctores, setDoctores] = useState<any[]>([]);
+  const [planFecha, setPlanFecha] = useState<string>('');
+  const { consultorio } = useConsultorio();
+  const { toast } = useToast();
+>>>>>>> Stashed changes
   
   // Estado para diálogos
   const [servicioActual, setServicioActual] = useState<{
@@ -108,8 +120,24 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
       
       setLoading(true);
       try {
+        // Cargar progreso de servicios
         const progreso = await getServiciosProgresoPlan(planId);
         setServiciosProgreso(progreso);
+<<<<<<< Updated upstream
+=======
+        
+        // Cargar información del plan para obtener la fecha
+        const plan = await getPlanTratamientoById(planId);
+        if (plan) {
+          setPlanFecha(plan.fecha);
+        }
+        
+        // Cargar doctores del consultorio
+        if (consultorio?.id) {
+          const doctoresData = await getDoctoresByConsultorio(consultorio.id);
+          setDoctores(doctoresData);
+        }
+>>>>>>> Stashed changes
       } catch (error) {
         console.error("Error al cargar el progreso de servicios:", error);
       } finally {
@@ -473,6 +501,7 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
           onCompletarClick={handleCompletarClick}
           onCancelarClick={handleCancelarClick}
           onPagoClick={handlePagoClick}
+          planFecha={planFecha}
         />
       )}
       
@@ -486,6 +515,7 @@ export function TreatmentsTab({ toothStatus, servicios, totalCost, pacienteId, p
           onCompletarClick={handleCompletarClick}
           onCancelarClick={handleCancelarClick}
           onPagoClick={handlePagoClick}
+          planFecha={planFecha}
         />
       )}
       
